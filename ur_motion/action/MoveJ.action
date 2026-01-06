@@ -1,0 +1,12 @@
+# Goal
+float64[] joints          # target joint values [rad]
+float64 velocity          # joint velocity scaling [0.05 ~ 1.0]
+
+---
+# Result
+bool success
+string message
+
+---
+# Feedback
+float64 progress          # 0.0 ~ 1.0 (optional)

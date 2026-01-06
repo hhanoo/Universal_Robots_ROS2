@@ -1,0 +1,12 @@
+# Goal
+float64[16] target_tmatrix   # 4x4 transform (row-major)
+float64 velocity             # TCP velocity [0.05 ~ 1.0]
+
+---
+# Result
+bool success
+string message
+
+---
+# Feedback
+float64 progress
