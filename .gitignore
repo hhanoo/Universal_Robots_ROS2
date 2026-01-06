@@ -46,3 +46,6 @@ log/
 open62541/
 libopen62541.a
 libopen62541.so*
+
+# ROS2 description wrapper
+ur_description_wrapper/config
