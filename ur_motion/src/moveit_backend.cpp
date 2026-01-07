@@ -166,8 +166,7 @@ MotionResult MoveItBackend::moveL(const std::array<double, 16>& T, double vel) {
     try {
         // Step 5-1: Convert trajectory message to MoveIt RobotTrajectory object
         // (trajectory message를 MoveIt RobotTrajectory 객체로 변환)
-        robot_trajectory::RobotTrajectory robot_trajectory(
-            move_group_->getRobotModel(), planning_group_name_);
+        robot_trajectory::RobotTrajectory robot_trajectory(move_group_->getRobotModel(), planning_group_name_);
         robot_trajectory.setRobotTrajectoryMsg(*move_group_->getCurrentState(), trajectory);
 
         // Step 5-2: Create time parameterization with velocity/acceleration limits
@@ -184,7 +183,7 @@ MotionResult MoveItBackend::moveL(const std::array<double, 16>& T, double vel) {
         } else {
             // Convert back to trajectory message
             robot_trajectory.getRobotTrajectoryMsg(trajectory);
-            RCLCPP_DEBUG(node_->get_logger(), "Trajectory time recomputed with velocity: %.2f, acceleration: %.2f", v, acc);
+            RCLCPP_INFO(node_->get_logger(), "Trajectory time recomputed with velocity: %.2f, acceleration: %.2f", v, acc);
         }
     } catch (const std::exception& e) {
         RCLCPP_WARN(node_->get_logger(), "Failed to recompute trajectory timing: %s", e.what());
