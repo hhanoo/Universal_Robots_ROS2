@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ur_moveit_config_wrapper</name>
+  <version>0.0.0</version>
+  <description>UR MoveIt Config Wrapper</description>
+  
+  <maintainer email="woo980711@gmail.com">hhanoo</maintainer>
+
+  <license>BSD-3-Clause</license>
+
+  <!-- ========================================================= -->
+  <!-- Build tool dependencies (빌드 시스템 의존성) -->
+  <!-- ========================================================= -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <!-- ========================================================= -->
+  <!-- Core ROS2 dependencies (핵심 ROS2 의존성) -->
+  <!-- ========================================================= -->
+  <!-- * Runtime dependencies for launch system (실행 시 필요한 의존성) -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <!-- * MoveIt core and planning dependencies (MoveIt 핵심 기능 및 플래닝 관련 의존성) -->
+  <exec_depend>moveit_kinematics</exec_depend>
+  <exec_depend>moveit_planners_ompl</exec_depend>
+  <exec_depend>moveit_ros_move_group</exec_depend>
+  <exec_depend>moveit_simple_controller_manager</exec_depend>
+  <!-- * MoveIt visualization dependencies (MoveIt 시각화 관련 의존성) -->
+  <exec_depend>moveit_ros_visualization</exec_depend>
+  <exec_depend>moveit_servo</exec_depend>
+  <!-- * RViz2 dependency (RViz2 시각화 도구 의존성) -->
+  <exec_depend>rviz2</exec_depend>
+  <!-- * UR robot description and MoveIt configs (공식 UR MoveIt 설정을 기반으로 wrapper 구성) -->
+  <exec_depend>ur_description</exec_depend>
+  <exec_depend>ur_moveit_config</exec_depend>
+  <!-- * Robot model utilities (URDF, Xacro 등 로봇 모델 처리 유틸리티) -->
+  <exec_depend>urdf</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <!-- * Warehouse ROS SQLite dependency (Warehouse ROS SQLite 데이터베이스 의존성) -->
+  <exec_depend>warehouse_ros_sqlite</exec_depend>
+
+  <!-- ========================================================= -->
+  <!-- Test dependencies (테스트용 의존성) -->
+  <!-- ========================================================= -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <!-- ========================================================= -->
+  <!-- Export build type (빌드 타입 명시) -->
+  <!-- ========================================================= -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
+
