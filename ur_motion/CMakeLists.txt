@@ -23,6 +23,9 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(control_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 
@@ -43,7 +46,6 @@ ament_export_dependencies(rosidl_default_runtime)
 #  - Backend들을 외부 패키지(opcua_server)에서 직접 사용하기 위한 라이브러리
 # =========================================================
 add_library(ur_motion_plugin SHARED
-  src/trajectory_backend.cpp
   src/moveit_backend.cpp
   src/transform_utils.cpp
 )
@@ -62,6 +64,7 @@ ament_target_dependencies(ur_motion_plugin
   control_msgs
   trajectory_msgs
   tf2
+  tf2_ros
   tf2_geometry_msgs
   moveit_core
   moveit_ros_planning_interface

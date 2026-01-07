@@ -16,9 +16,12 @@
 
 namespace ur_motion {
 
-class MoveItBackend : public MoveLBackend {
+class MoveItBackend : public MoveJBackend, public MoveLBackend {
    public:
     explicit MoveItBackend(rclcpp::Node::SharedPtr node);
+
+    // Joint space move using MoveIt (MoveIt 기반 관절 공간 이동)
+    MotionResult moveJ(const std::vector<double>& joints, double vel) override;
 
     // Cartesian linear move using MoveIt (MoveIt 기반 직선 이동)
     MotionResult moveL(const std::array<double, 16>& T, double vel) override;

@@ -42,6 +42,10 @@
   <!-- * Control and trajectory messages (제어 및 궤적 관련 메시지) -->
   <depend>control_msgs</depend>
   <depend>trajectory_msgs</depend>
+  <!-- * TF2 for coordinate transformations (좌표 변환을 위한 TF2) -->
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
   <!-- * MoveIt core and planning interface (MoveIt 핵심 및 플래닝 인터페이스) -->
   <depend>moveit_core</depend>
   <depend>moveit_ros_planning_interface</depend>

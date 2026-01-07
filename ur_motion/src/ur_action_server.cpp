@@ -10,7 +10,6 @@
 #include "ur_motion/action/move_l.hpp"
 #include "ur_motion/motion_backend.hpp"
 #include "ur_motion/moveit_backend.hpp"
-#include "ur_motion/trajectory_backend.hpp"
 #include "ur_motion/transform_utils.hpp"
 
 using namespace std::chrono_literals;
@@ -19,6 +18,11 @@ namespace ur_motion {
 
 class URActionServer : public rclcpp::Node {
    public:
+    // Motion completion detection constants
+    static constexpr double                    VELOCITY_THRESHOLD = 0.01;  // rad/s - threshold for considering robot stopped
+    static constexpr double                    STABLE_DURATION    = 0.2;   // seconds - duration robot must be stable
+    static constexpr std::chrono::milliseconds POLL_INTERVAL{10};          // polling interval for motion check
+
     // Action type aliases
     using MoveJ           = ur_motion::action::MoveJ;
     using MoveL           = ur_motion::action::MoveL;
@@ -54,21 +58,21 @@ class URActionServer : public rclcpp::Node {
 
     // Initialize backends (must be called after object is managed by shared_ptr)
     void initBackends() {
-        // MoveJ uses TrajectoryBackend
-        movej_backend_ = std::make_shared<TrajectoryBackend>(shared_from_this());
-        RCLCPP_INFO(get_logger(), "TrajectoryBackend initialized for MoveJ");
-
         // Setup MoveIt parameters before initializing MoveItBackend
         setupMoveItParameters();
 
-        // MoveL uses MoveItBackend
+        // Initialize MoveItBackend for both MoveJ and MoveL
+        // MoveItBackend supports both moveJ() (joint space) and moveL() (Cartesian space)
+        // with collision avoidance and path planning
+        // (MoveJ와 MoveL 모두를 위한 MoveItBackend 초기화)
+        // (MoveItBackend는 moveJ(관절 공간)와 moveL(직교 공간) 모두 지원하며 충돌 회피 및 경로 계획 기능 제공)
         try {
-            movel_backend_ = std::make_shared<MoveItBackend>(shared_from_this());
-            RCLCPP_INFO(get_logger(), "MoveItBackend initialized for MoveL");
+            motion_backend_ = std::make_shared<MoveItBackend>(shared_from_this());
+            RCLCPP_INFO(get_logger(), "MoveItBackend initialized for both MoveJ and MoveL");
         } catch (const std::exception& e) {
             RCLCPP_ERROR(get_logger(), "Failed to initialize MoveItBackend: %s", e.what());
-            RCLCPP_WARN(get_logger(), "MoveL will not be available. Please ensure robot_description and robot_description_semantic are set.");
-            movel_backend_ = nullptr;  // Set to nullptr to indicate initialization failed
+            RCLCPP_WARN(get_logger(), "MoveJ and MoveL will not be available. Please ensure robot_description and robot_description_semantic are set.");
+            motion_backend_ = nullptr;
         }
     }
 
@@ -85,9 +89,8 @@ class URActionServer : public rclcpp::Node {
     }
 
    private:
-    // Separate backends for MoveJ and MoveL (using interface types)
-    std::shared_ptr<MoveJBackend> movej_backend_;
-    std::shared_ptr<MoveLBackend> movel_backend_;
+    // MoveIt backend for both MoveJ and MoveL
+    std::shared_ptr<MoveItBackend> motion_backend_;
 
     // Action servers
     rclcpp_action::Server<MoveJ>::SharedPtr movej_server_;
@@ -105,14 +108,14 @@ class URActionServer : public rclcpp::Node {
     }
 
     // Check if all joint velocities are below threshold
-    bool isRobotStopped(double vel_threshold = 0.01) {
+    bool isRobotStopped() {
         std::lock_guard<std::mutex> lock(joint_state_mutex_);
 
         if (last_joint_state_.velocity.empty())
             return false;
 
         for (double v : last_joint_state_.velocity) {
-            if (std::abs(v) > vel_threshold) {
+            if (std::abs(v) > VELOCITY_THRESHOLD) {
                 return false;
             }
         }
@@ -125,13 +128,13 @@ class URActionServer : public rclcpp::Node {
 
         while (rclcpp::ok()) {
             if (isRobotStopped()) {
-                if ((now() - stable_start).seconds() > 0.2) {
+                if ((now() - stable_start).seconds() > STABLE_DURATION) {
                     return;
                 }
             } else {
                 stable_start = now();
             }
-            rclcpp::sleep_for(10ms);
+            rclcpp::sleep_for(POLL_INTERVAL);
         }
     }
 
@@ -159,36 +162,25 @@ class URActionServer : public rclcpp::Node {
         const auto goal = goal_handle->get_goal();
 
         // Check if backend is initialized
-        if (!movej_backend_) {
-            auto result     = std::make_shared<MoveJ::Result>();
-            result->success = false;
-            result->message = "MoveJBackend not initialized";
-            RCLCPP_ERROR(get_logger(), "MoveJBackend not initialized");
-            goal_handle->abort(result);
+        if (!motion_backend_) {
+            abortGoal(goal_handle, "MoveItBackend not initialized");
             return;
         }
 
-        // Send MoveJ command using MoveJBackend
-        auto motion_result = movej_backend_->moveJ(goal->joints, goal->velocity);
+        // Send MoveJ command using MoveItBackend
+        auto motion_result = motion_backend_->moveJ(goal->joints, goal->velocity);
 
-        // Check if motion command failed
+        // Handle motion result
         if (!motion_result.success) {
-            auto result     = std::make_shared<MoveJ::Result>();
-            result->success = false;
-            result->message = motion_result.message;
-            RCLCPP_ERROR(get_logger(), "MoveJ failed: %s", motion_result.message.c_str());
-            goal_handle->abort(result);
+            abortGoal(goal_handle, "MoveJ failed: " + motion_result.message);
             return;
         }
 
         // Wait until robot actually stops
         waitUntilMotionDone();
 
-        auto result     = std::make_shared<MoveJ::Result>();
-        result->success = true;
-        result->message = "MoveJ done";
-
-        goal_handle->succeed(result);
+        // Succeed goal
+        succeedGoal(goal_handle, "MoveJ done");
     }
 
     // ================= MoveL =================
@@ -213,35 +205,58 @@ class URActionServer : public rclcpp::Node {
         const auto goal = goal_handle->get_goal();
 
         // Check if backend is initialized
-        if (!movel_backend_) {
-            auto result     = std::make_shared<MoveL::Result>();
-            result->success = false;
-            result->message = "MoveLBackend not initialized";
-            RCLCPP_ERROR(get_logger(), "MoveLBackend not initialized");
-            goal_handle->abort(result);
+        if (!motion_backend_) {
+            abortGoal(goal_handle, "MoveItBackend not initialized");
             return;
         }
 
-        // Send MoveL command using MoveLBackend
-        auto motion_result = movel_backend_->moveL(goal->target_tmatrix, goal->velocity);
+        // Send MoveL command using MoveItBackend
+        auto motion_result = motion_backend_->moveL(goal->target_tmatrix, goal->velocity);
 
-        // Check if motion command failed
+        // Handle motion result
         if (!motion_result.success) {
-            auto result     = std::make_shared<MoveL::Result>();
-            result->success = false;
-            result->message = motion_result.message;
-            RCLCPP_ERROR(get_logger(), "MoveL failed: %s", motion_result.message.c_str());
-            goal_handle->abort(result);
+            abortGoal(goal_handle, "MoveL failed: " + motion_result.message);
             return;
         }
 
         // Wait until robot actually stops
         waitUntilMotionDone();
 
+        // Succeed goal
+        succeedGoal(goal_handle, "MoveL done");
+    }
+
+    // Helper: Abort MoveJ goal with error message
+    void abortGoal(const std::shared_ptr<GoalHandleMoveJ> goal_handle, const std::string& message) {
+        auto result     = std::make_shared<MoveJ::Result>();
+        result->success = false;
+        result->message = message;
+        RCLCPP_ERROR(get_logger(), "%s", message.c_str());
+        goal_handle->abort(result);
+    }
+
+    // Helper: Abort MoveL goal with error message
+    void abortGoal(const std::shared_ptr<GoalHandleMoveL> goal_handle, const std::string& message) {
+        auto result     = std::make_shared<MoveL::Result>();
+        result->success = false;
+        result->message = message;
+        RCLCPP_ERROR(get_logger(), "%s", message.c_str());
+        goal_handle->abort(result);
+    }
+
+    // Helper: Succeed MoveJ goal with success message
+    void succeedGoal(const std::shared_ptr<GoalHandleMoveJ> goal_handle, const std::string& message) {
+        auto result     = std::make_shared<MoveJ::Result>();
+        result->success = true;
+        result->message = message;
+        goal_handle->succeed(result);
+    }
+
+    // Helper: Succeed MoveL goal with success message
+    void succeedGoal(const std::shared_ptr<GoalHandleMoveL> goal_handle, const std::string& message) {
         auto result     = std::make_shared<MoveL::Result>();
         result->success = true;
-        result->message = "MoveL done";
-
+        result->message = message;
         goal_handle->succeed(result);
     }
 };

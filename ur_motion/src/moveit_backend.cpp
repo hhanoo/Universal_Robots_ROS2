@@ -87,6 +87,91 @@ bool MoveItBackend::initializeMoveGroup() {
     }
 }
 
+MotionResult MoveItBackend::moveJ(const std::vector<double>& joints, double vel) {
+    if (!move_group_) {
+        return {false, "MoveGroupInterface not initialized"};
+    }
+
+    // 0) Ensure current state is updated (현재 상태 업데이트 확인)
+    // MoveIt needs to know the current robot state for planning
+    // (MoveIt은 경로 계획을 위해 현재 로봇 상태를 알아야 함)
+    try {
+        // Start state monitor to receive joint states (joint_states를 받기 위해 상태 모니터 시작)
+        move_group_->startStateMonitor();
+        // Give it a moment to receive joint states (joint_states를 받을 시간 제공)
+        rclcpp::sleep_for(std::chrono::milliseconds(200));
+    } catch (const std::exception& e) {
+        RCLCPP_WARN(node_->get_logger(), "Failed to start state monitor: %s", e.what());
+    }
+
+    // 1) Velocity and acceleration scaling (속도 및 가속도 스케일링 설정)
+    // - velocity scaling factor: controls the maximum velocity of the trajectory
+    //   (속도 스케일링 팩터: trajectory의 최대 속도 제어)
+    // - acceleration scaling factor: controls the maximum acceleration of the trajectory
+    //   (가속도 스케일링 팩터: trajectory의 최대 가속도 제어)
+    // - Both are clamped to [0.01, 1.0] range for safety
+    //   (안전을 위해 둘 다 [0.01, 1.0] 범위로 제한)
+    double v   = std::clamp(vel, 0.01, 1.0);  // clamp velocity (속도 제한)
+    double acc = std::clamp(vel, 0.01, 1.0);  // clamp acceleration (가속도 제한)
+    move_group_->setMaxVelocityScalingFactor(v);
+    move_group_->setMaxAccelerationScalingFactor(acc);
+
+    // 2) Set target joint values (목표 관절값 설정)
+    // setJointValueTarget() checks if the target is within joint limits
+    // (setJointValueTarget()는 목표가 관절 한계 내에 있는지 확인)
+    // Returns false if target is out of bounds
+    // (목표가 범위를 벗어나면 false 반환)
+    if (!move_group_->setJointValueTarget(joints)) {
+        return {false, "Target joint values are out of bounds"};
+    }
+
+    // 3) Plan trajectory in joint space (관절 공간에서 trajectory 계획)
+    // MoveIt uses OMPL planners (e.g., RRTConnect, RRT*) for joint space planning
+    // (MoveIt은 관절 공간 planning에 OMPL planner (예: RRTConnect, RRT*) 사용)
+    // Planning process:
+    // (계획 프로세스:)
+    // - Search for collision-free path from current to target joint configuration
+    //   (현재에서 목표 관절 구성까지의 충돌 없는 경로 탐색)
+    // - Optimize path for smoothness and efficiency
+    //   (부드러움과 효율성을 위해 경로 최적화)
+    // - Apply velocity/acceleration scaling factors set above
+    //   (위에서 설정한 속도/가속도 스케일링 팩터 적용)
+    // - Compute time parameterization automatically (C++17 based optimization)
+    //   (자동으로 시간 매개변수화 계산 - C++17 기반 최적화)
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    auto const                                           ok = static_cast<bool>(move_group_->plan(plan));
+
+    if (!ok) {
+        RCLCPP_ERROR(node_->get_logger(), "MoveJ planning failed");
+        return {false, "MoveJ planning failed"};
+    }
+
+    RCLCPP_INFO(node_->get_logger(), "MoveJ planning succeeded. Trajectory has %zu points.",
+                plan.trajectory_.joint_trajectory.points.size());
+
+    // 4) Execute planned trajectory (계획된 trajectory 실행)
+    // MoveIt automatically sends the trajectory to the controller via FollowJointTrajectory action
+    // (MoveIt은 자동으로 trajectory를 FollowJointTrajectory action을 통해 controller에 전송)
+    // The trajectory is sent to /scaled_joint_trajectory_controller/follow_joint_trajectory
+    // (trajectory는 /scaled_joint_trajectory_controller/follow_joint_trajectory로 전송됨)
+    //
+    // Key features of MoveIt's plan execution:
+    // (MoveIt plan 실행의 주요 특징:)
+    // - The planned trajectory already includes time parameterization
+    //   (계획된 trajectory는 이미 시간 매개변수화를 포함)
+    // - Velocity and acceleration scaling factors are already applied
+    //   (속도 및 가속도 스케일링 팩터가 이미 적용됨)
+    // - Joint trajectory points contain position, velocity, and time information
+    //   (관절 trajectory point는 위치, 속도, 시간 정보를 포함)
+    auto result = move_group_->execute(plan);
+    if (result != moveit::core::MoveItErrorCode::SUCCESS) {
+        RCLCPP_ERROR(node_->get_logger(), "MoveJ execution failed");
+        return {false, "MoveJ execution failed"};
+    }
+
+    return {true, "MoveJ done (MoveIt Joint Space)"};
+}
+
 MotionResult MoveItBackend::moveL(const std::array<double, 16>& T, double vel) {
     if (!move_group_) {
         return {false, "MoveGroupInterface not initialized"};
