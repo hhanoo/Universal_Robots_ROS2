@@ -9,37 +9,52 @@
   
   <license>BSD-3-Clause</license>
 
-  <!-- Build tool dependency (빌드 도구) -->
+  <!-- ========================================================= -->
+  <!-- Build tool dependencies (빌드 시스템 의존성) -->
+  <!-- ========================================================= -->
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <!-- Build-time dependency for Action/Msg generation
-       (Action/Msg 코드 생성 시 필요) -->
+  <!-- ========================================================= -->
+  <!-- Build-time dependency for Action/Msg generation (Action/Msg 코드 생성 시 필요한 의존성) -->
+  <!-- ========================================================= -->
   <build_depend>rosidl_default_generators</build_depend>
 
-  <!-- Runtime dependency for generated Action/Msg
-       (실행 시 필요) -->
+  <!-- ========================================================= -->
+  <!-- Runtime dependency for generated Action/Msg (실행 시 필요한 의존성) -->
+  <!-- ========================================================= -->
   <exec_depend>rosidl_default_runtime</exec_depend>
 
+  <!-- ========================================================= -->
+  <!-- Mark this package as an interface package (Action/Msg/Srv 인터페이스 패키지임을 명시) -->
+  <!-- ========================================================= -->
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <!-- ========================================================= -->
   <!-- Core ROS2 dependencies (핵심 ROS2 의존성) -->
+  <!-- ========================================================= -->
+  <!-- * ROS 2 core client libraries (ROS 2 핵심 클라이언트 라이브러리) -->
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
-  <depend>geometry_msgs</depend>
+  <!-- * Common message types (기본 메시지 타입) -->
   <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
   <depend>sensor_msgs</depend>
+  <!-- * Control and trajectory messages (제어 및 궤적 관련 메시지) -->
   <depend>control_msgs</depend>
   <depend>trajectory_msgs</depend>
+  <!-- * MoveIt core and planning interface (MoveIt 핵심 및 플래닝 인터페이스) -->
   <depend>moveit_core</depend>
   <depend>moveit_ros_planning_interface</depend>
   
+  <!-- ========================================================= -->
   <!-- Test dependencies (테스트용 의존성) -->
+  <!-- ========================================================= -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
-  <!-- Mark this package as an interface package
-       (Action/Msg/Srv 인터페이스 패키지임을 명시) -->
-  <member_of_group>rosidl_interface_packages</member_of_group>
-
+  <!-- ========================================================= -->
   <!-- Export build type (빌드 타입 명시) -->
+  <!-- ========================================================= -->
   <export>
     <build_type>ament_cmake</build_type>
   </export>

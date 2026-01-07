@@ -9,11 +9,20 @@
 
   <license>BSD-3-Clause</license>
 
+  <!-- ========================================================= -->
+  <!-- Build tool dependencies (빌드 시스템 의존성) -->
+  <!-- ========================================================= -->
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <!-- ========================================================= -->
+  <!-- Test dependencies (테스트용 의존성) -->
+  <!-- ========================================================= -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
+  <!-- ========================================================= -->
+  <!-- Export build type (빌드 타입 명시) -->
+  <!-- ========================================================= -->
   <export>
     <build_type>ament_cmake</build_type>
   </export>

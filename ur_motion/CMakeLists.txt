@@ -94,6 +94,7 @@ target_link_libraries(ur_action_server
 # =========================================================
 # Install
 # =========================================================
+# Install executable and library targets
 install(
   TARGETS
     ur_motion_plugin
@@ -103,11 +104,13 @@ install(
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
+# Install public header files
 install(
   DIRECTORY include/
   DESTINATION include
 )
 
+# Install action definition files
 install(
   DIRECTORY action
   DESTINATION share/${PROJECT_NAME}
@@ -135,4 +138,7 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+# =========================================================
+# Package declaration
+# =========================================================
 ament_package()
