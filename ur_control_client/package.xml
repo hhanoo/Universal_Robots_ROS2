@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ur_control_client</name>
+  <version>1.0.0</version>
+  <description>C++ client library and examples for UR robot control (MoveJ, MoveL, I/O, Speed)</description>
+
+  <maintainer email="woo980711@gmail.com">hhanoo</maintainer>
+  
+  <license>BSD-3-Clause</license>
+
+  <!-- ========================================================= -->
+  <!-- Build tool dependencies (빌드 시스템 의존성) -->
+  <!-- ========================================================= -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- ========================================================= -->
+  <!-- Core ROS2 dependencies (핵심 ROS2 의존성) -->
+  <!-- ========================================================= -->
+  <!-- * ROS 2 core client libraries (ROS 2 핵심 클라이언트 라이브러리) -->
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  
+  <!-- * UR Motion action interface (UR 모션 액션 인터페이스) -->
+  <depend>ur_motion</depend>
+  
+  <!-- * UR-specific messages and services (UR 전용 메시지 및 서비스) -->
+  <depend>ur_msgs</depend>
+  
+  <!-- * Common message types (기본 메시지 타입) -->
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+
+  <!-- ========================================================= -->
+  <!-- Test dependencies (테스트용 의존성) -->
+  <!-- ========================================================= -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <!-- ========================================================= -->
+  <!-- Export build type (빌드 타입 명시) -->
+  <!-- ========================================================= -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
