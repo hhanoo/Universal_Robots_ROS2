@@ -71,18 +71,17 @@ ament_target_dependencies(ur_motion_plugin
 )
 
 # =========================================================
-# Executable: ur_action_server
-#  - Action server는 backend 라이브러리를 링크해서 사용
+# Executable: motion_action_server
 # =========================================================
-add_executable(ur_action_server
-  src/ur_action_server.cpp
+add_executable(motion_action_server
+  src/motion_action_server.cpp
 )
 
-target_link_libraries(ur_action_server
+target_link_libraries(motion_action_server
   ur_motion_plugin
 )
 
-ament_target_dependencies(ur_action_server
+ament_target_dependencies(motion_action_server
   rclcpp
   rclcpp_action
 )
@@ -90,7 +89,7 @@ ament_target_dependencies(ur_action_server
 # Action typesupport linking
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
-target_link_libraries(ur_action_server
+target_link_libraries(motion_action_server
   "${cpp_typesupport_target}"
 )
 
@@ -101,7 +100,7 @@ target_link_libraries(ur_action_server
 install(
   TARGETS
     ur_motion_plugin
-    ur_action_server
+    motion_action_server
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

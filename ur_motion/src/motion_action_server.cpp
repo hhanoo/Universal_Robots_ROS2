@@ -16,7 +16,7 @@ using namespace std::chrono_literals;
 
 namespace ur_motion {
 
-class URActionServer : public rclcpp::Node {
+class MotionActionServer : public rclcpp::Node {
    public:
     // Motion completion detection constants
     static constexpr double                    VELOCITY_THRESHOLD = 0.01;  // rad/s - threshold for considering robot stopped
@@ -29,29 +29,29 @@ class URActionServer : public rclcpp::Node {
     using GoalHandleMoveJ = rclcpp_action::ServerGoalHandle<MoveJ>;
     using GoalHandleMoveL = rclcpp_action::ServerGoalHandle<MoveL>;
 
-    URActionServer()
-        : Node("ur_action_server") {
+    MotionActionServer()
+        : Node("motion_action_server") {
         // Subscribe to joint states for motion completion detection
         joint_state_sub_ = create_subscription<sensor_msgs::msg::JointState>(
             "/joint_states",
             10,
-            std::bind(&URActionServer::jointStateCallback, this, std::placeholders::_1));
+            std::bind(&MotionActionServer::jointStateCallback, this, std::placeholders::_1));
 
         // Create MoveJ action server
         movej_server_ = rclcpp_action::create_server<MoveJ>(
             this,
             "move_j",
-            std::bind(&URActionServer::handleMoveJGoal, this, std::placeholders::_1, std::placeholders::_2),
-            std::bind(&URActionServer::handleMoveJCancel, this, std::placeholders::_1),
-            std::bind(&URActionServer::handleMoveJAccept, this, std::placeholders::_1));
+            std::bind(&MotionActionServer::handleMoveJGoal, this, std::placeholders::_1, std::placeholders::_2),
+            std::bind(&MotionActionServer::handleMoveJCancel, this, std::placeholders::_1),
+            std::bind(&MotionActionServer::handleMoveJAccept, this, std::placeholders::_1));
 
         // Create MoveL action server
         movel_server_ = rclcpp_action::create_server<MoveL>(
             this,
             "move_l",
-            std::bind(&URActionServer::handleMoveLGoal, this, std::placeholders::_1, std::placeholders::_2),
-            std::bind(&URActionServer::handleMoveLCancel, this, std::placeholders::_1),
-            std::bind(&URActionServer::handleMoveLAccept, this, std::placeholders::_1));
+            std::bind(&MotionActionServer::handleMoveLGoal, this, std::placeholders::_1, std::placeholders::_2),
+            std::bind(&MotionActionServer::handleMoveLCancel, this, std::placeholders::_1),
+            std::bind(&MotionActionServer::handleMoveLAccept, this, std::placeholders::_1));
 
         RCLCPP_INFO(get_logger(), "UR Action Server started");
     }
@@ -154,7 +154,7 @@ class URActionServer : public rclcpp::Node {
 
     // Handle MoveJ accept (Run execution in detached thread)
     void handleMoveJAccept(const std::shared_ptr<GoalHandleMoveJ> goal_handle) {
-        std::thread(&URActionServer::executeMoveJ, this, goal_handle).detach();
+        std::thread(&MotionActionServer::executeMoveJ, this, goal_handle).detach();
     }
 
     // Execute MoveJ command
@@ -197,7 +197,7 @@ class URActionServer : public rclcpp::Node {
 
     // Handle MoveL accept (Run execution in detached thread)
     void handleMoveLAccept(const std::shared_ptr<GoalHandleMoveL> goal_handle) {
-        std::thread(&URActionServer::executeMoveL, this, goal_handle).detach();
+        std::thread(&MotionActionServer::executeMoveL, this, goal_handle).detach();
     }
 
     // Execute MoveL command
@@ -268,7 +268,7 @@ int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
     // Create and spin action server node
-    auto node = std::make_shared<ur_motion::URActionServer>();
+    auto node = std::make_shared<ur_motion::MotionActionServer>();
 
     // Initialize backends (must be called after shared_ptr is created)
     node->initBackends();
