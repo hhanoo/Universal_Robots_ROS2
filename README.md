@@ -31,16 +31,16 @@ source /opt/ros/humble/setup.bash
 source install/setup.bash
 
 # 기본 실행 (시뮬레이션 모드)
-ros2 launch src/Universal_Robots_ROS2/ur_control.launch.py
+ros2 launch src/ur_control.launch.py
 
 # 실제 로봇 사용
-ros2 launch src/Universal_Robots_ROS2/ur_control.launch.py \
+ros2 launch src/ur_control.launch.py \
     robot_ip:=192.168.1.25 \
     ur_type:=ur10e \
     use_fake_hardware:=false
 
 # 시뮬레이션 모드
-ros2 launch src/Universal_Robots_ROS2/ur_control.launch.py \
+ros2 launch src/ur_control.launch.py \
     robot_ip:=127.0.0.1 \
     ur_type:=ur10e \
     use_fake_hardware:=true \
@@ -57,5 +57,5 @@ ros2 launch src/Universal_Robots_ROS2/ur_control.launch.py \
 **모든 인자 확인:**
 
 ```bash
-ros2 launch src/Universal_Robots_ROS2/ur_control.launch.py --show-args
+ros2 launch src/ur_control.launch.py --show-args
 ```
