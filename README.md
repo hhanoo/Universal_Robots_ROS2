@@ -1,1 +1,61 @@
 # Universal_Robots_ROS2
+
+Universal Robots ROS2 패키지 모음
+
+## 📦 패키지 구성
+
+- `ur_robot_driver_wrapper` - UR 로봇 드라이버 래퍼
+- `ur_moveit_config_wrapper` - MoveIt 설정 래퍼
+- `ur_motion` - Motion Action Server (MoveJ/MoveL)
+- `ur_control_client` - C++ 클라이언트 라이브러리
+- `ur_control_client_py` - Python 클라이언트 라이브러리
+
+## 🚀 Launch 파일
+
+### `ur_control.launch.py`
+
+UR 로봇 제어 시스템의 모든 노드를 실행하는 통합 launch 파일입니다.
+
+**실행하는 노드:**
+
+1. UR Robot Driver - UR 로봇 하드웨어/시뮬레이터와 통신
+2. MoveIt - 모션 플래닝 및 충돌 감지
+3. Motion Action Server - MoveJ/MoveL 액션 서버
+
+**사용 방법:**
+
+```bash
+# 워크스페이스 루트에서 실행
+cd /ros2_ws
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+# 기본 실행 (시뮬레이션 모드)
+ros2 launch src/Universal_Robots_ROS2/ur_control.launch.py
+
+# 실제 로봇 사용
+ros2 launch src/Universal_Robots_ROS2/ur_control.launch.py \
+    robot_ip:=192.168.1.25 \
+    ur_type:=ur10e \
+    use_fake_hardware:=false
+
+# 시뮬레이션 모드
+ros2 launch src/Universal_Robots_ROS2/ur_control.launch.py \
+    robot_ip:=127.0.0.1 \
+    ur_type:=ur10e \
+    use_fake_hardware:=true \
+    launch_rviz:=true
+```
+
+**Launch Arguments:**
+
+- `robot_ip` (default: `127.0.0.1`) - UR 로봇의 IP 주소 (시뮬레이션: `127.0.0.1`)
+- `ur_type` (default: `ur10e`) - 로봇 타입 (`ur3`, `ur3e`, `ur5`, `ur5e`, `ur10`, `ur10e`, `ur16e`, `ur20`, `ur30`)
+- `use_fake_hardware` (default: `false`) - 시뮬레이션 모드 사용 여부
+- `launch_rviz` (default: `true`) - RViz 실행 여부
+
+**모든 인자 확인:**
+
+```bash
+ros2 launch src/Universal_Robots_ROS2/ur_control.launch.py --show-args
+```
