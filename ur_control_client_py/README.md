@@ -1,10 +1,10 @@
 # UR Control Client (Python)
 
-Python 기반 UR 로봇 제어 클라이언트 라이브러리 및 예제
+Python 기반 UR 로봇 제어 라이브러리 (`URRobotController` 클래스)
 
 ## 📋 개요
 
-이 패키지는 UR 로봇을 제어하기 위한 Python 클라이언트 라이브러리와 예제 프로그램을 제공합니다.
+이 패키지는 UR 로봇을 제어하기 위한 Python 라이브러리(`URRobotController`)와 예제 프로그램을 제공합니다.
 
 **제공 기능:**
 
@@ -13,6 +13,7 @@ Python 기반 UR 로봇 제어 클라이언트 라이브러리 및 예제
 - ✅ **Speed Slider**: 속도 제어
 - ✅ **Digital I/O**: 디지털 입출력 제어
 - ✅ **State Monitoring**: 로봇 상태 모니터링
+- ✅ **TCP Pose Tracking**: TF를 통한 TCP 포즈 추적
 
 ## 📦 패키지 정보
 
@@ -212,28 +213,34 @@ ros2 run ur_control_client_py example_complete
 
 ```python
 import rclpy
-from ur_control_client_py.ur_control_client import URControlClient
-import time
+from rclpy.node import Node
+from ur_control_client_py import URRobotController
 
 def main(args=None):
     rclpy.init(args=args)
-    client = URControlClient()
+    
+    # Create ROS2 node
+    node = Node('my_robot_controller')
+    
+    # Create robot controller
+    robot = URRobotController(node)
 
     # Wait for robot connection
-    client.get_logger().info('Waiting for robot connection...')
-    while rclpy.ok() and not client.is_connected():
-        rclpy.spin_once(client, timeout_sec=0.1)
+    node.get_logger().info('Waiting for robot connection...')
+    while rclpy.ok() and not robot.is_connected():
+        rclpy.spin_once(node, timeout_sec=0.1)
 
-    if not client.is_connected():
-        client.get_logger().error('Failed to connect to robot')
+    if not robot.is_connected():
+        node.get_logger().error('Failed to connect to robot')
+        node.destroy_node()
         rclpy.shutdown()
         return
 
-    client.get_logger().info('✅ Robot connected!')
+    node.get_logger().info('✅ Robot connected!')
 
     # Your code here...
 
-    client.destroy_node()
+    node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
@@ -245,10 +252,10 @@ if __name__ == '__main__':
 ```python
 # Move to home position
 home = [0.0, -1.57, 1.57, -1.57, -1.57, 0.0]
-success = client.move_j(home, velocity=0.5, wait=True)
+success = robot.move_j(home, velocity=0.5, wait=True)
 
 if success:
-    client.get_logger().info('✅ Motion succeeded!')
+    node.get_logger().info('✅ Motion succeeded!')
 ```
 
 ### MoveL 사용
@@ -272,47 +279,51 @@ def create_tmatrix(x, y, z, rx, ry, rz):
 
 # Create T-matrix and move
 tmatrix = create_tmatrix(0.4, 0.2, 0.3, math.pi, 0.0, 0.0)
-success = client.move_l(tmatrix, velocity=0.3, wait=True)
+success = robot.move_l(tmatrix, velocity=0.3, wait=True)
 ```
 
 ### Speed Slider 제어
 
 ```python
 # Set speed to 50%
-client.set_speed_slider(0.5)
+robot.set_speed_slider(0.5)
 
 # Get current speed
-current_speed = client.get_speed_scaling()
-client.get_logger().info(f'Current speed: {current_speed * 100:.1f}%')
+current_speed = robot.get_speed_scaling()
+node.get_logger().info(f'Current speed: {current_speed * 100:.1f}%')
 ```
 
 ### Digital I/O 제어
 
 ```python
 # Set digital output
-client.set_digital_out(0, True)   # DO[0] = HIGH
-client.set_digital_out(0, False)  # DO[0] = LOW
+robot.set_digital_out(0, True)   # DO[0] = HIGH
+robot.set_digital_out(0, False)  # DO[0] = LOW
 
 # Read digital input
-di_state = client.get_digital_in(0)  # Read DI[0]
-client.get_logger().info(f'DI[0]: {"HIGH" if di_state else "LOW"}')
+di_state = robot.get_digital_in(0)  # Read DI[0]
+node.get_logger().info(f'DI[0]: {"HIGH" if di_state else "LOW"}')
 
 # Read digital output
-do_state = client.get_digital_out(0)  # Read DO[0]
+do_state = robot.get_digital_out(0)  # Read DO[0]
 ```
 
 ### 상태 모니터링
 
 ```python
 # Check connection
-if client.is_connected():
-    client.get_logger().info('✅ Robot connected!')
+if robot.is_connected():
+    node.get_logger().info('✅ Robot connected!')
 
 # Get joint positions
-joints = client.get_joint_positions()
+joints = robot.get_joint_positions()
 if joints:
     for i, j in enumerate(joints):
-        client.get_logger().info(f'Joint[{i}]: {j:.4f} rad')
+        node.get_logger().info(f'Joint[{i}]: {j:.4f} rad')
+
+# Get TCP pose (4x4 transformation matrix)
+tcp_pose = robot.get_tcp_pose()
+node.get_logger().info(f'TCP position: [{tcp_pose[0,3]:.3f}, {tcp_pose[1,3]:.3f}, {tcp_pose[2,3]:.3f}]')
 ```
 
 ---
@@ -336,35 +347,41 @@ My Custom UR Control Program
 """
 
 import rclpy
-from ur_control_client_py.ur_control_client import URControlClient
-import time
+from rclpy.node import Node
+from ur_control_client_py import URRobotController
 
 def main(args=None):
     rclpy.init(args=args)
-    client = URControlClient()
+    
+    # Create ROS2 node
+    node = Node('my_robot_controller')
+    
+    # Create robot controller
+    robot = URRobotController(node)
 
     # Wait for robot connection
-    client.get_logger().info('Waiting for robot connection...')
-    while rclpy.ok() and not client.is_connected():
-        rclpy.spin_once(client, timeout_sec=0.1)
+    node.get_logger().info('Waiting for robot connection...')
+    while rclpy.ok() and not robot.is_connected():
+        rclpy.spin_once(node, timeout_sec=0.1)
 
-    if not client.is_connected():
-        client.get_logger().error('Failed to connect to robot')
+    if not robot.is_connected():
+        node.get_logger().error('Failed to connect to robot')
+        node.destroy_node()
         rclpy.shutdown()
         return
 
-    client.get_logger().info('✅ Robot connected!')
+    node.get_logger().info('✅ Robot connected!')
 
     # ========== Your custom logic here ==========
 
     home = [0.0, -1.57, 1.57, -1.57, -1.57, 0.0]
-    client.move_j(home, 0.5, True)
+    robot.move_j(home, 0.5, True)
 
     # More motions...
 
     # ============================================
 
-    client.destroy_node()
+    node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
@@ -397,7 +414,7 @@ ros2 run ur_control_client_py my_program
 
 ## 📚 API 참고
 
-### URControlClient 클래스
+### URRobotController 클래스
 
 #### Motion Control
 
@@ -409,7 +426,7 @@ move_l(tmatrix: list, velocity: float = 0.5, wait: bool = True) -> bool
 **Parameters:**
 
 - `joints`: 6개 관절 위치 (라디안)
-- `tmatrix`: 4x4 변환 행렬 (16개 요소, row-major)
+- `tmatrix`: 4x4 변환 행렬 (16개 요소, row-major) 또는 numpy ndarray
 - `velocity`: 속도 스케일링 [0.01 ~ 1.0]
 - `wait`: 모션 완료 대기 여부
 
@@ -444,6 +461,8 @@ get_digital_out(pin: int) -> bool
 ```python
 is_connected() -> bool
 get_joint_positions() -> list or None
+get_tcp_pose() -> np.ndarray  # 4x4 transformation matrix
+is_tcp_pose_available() -> bool
 ```
 
 ---
@@ -525,6 +544,10 @@ MoveL failed
 - `ur_msgs`: UR ROS2 Driver 메시지 및 서비스
 - `sensor_msgs`: 센서 메시지 (JointState 등)
 - `std_msgs`: 표준 메시지
+- `geometry_msgs`: 기하학적 메시지 (Transform 등)
+- `tf2_ros`: TF2 라이브러리 (TCP 포즈 추적)
+- `numpy`: 수치 계산 (4x4 변환 행렬)
+- `scipy`: 과학 계산 (Rotation 변환)
 
 ### 관련 패키지
 

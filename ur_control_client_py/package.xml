@@ -24,6 +24,14 @@
   <!-- * Common message types -->
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+
+  <!-- * TF2 for TCP pose tracking -->
+  <depend>tf2_ros</depend>
+
+  <!-- * Python dependencies -->
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
 
   <!-- ========================================================= -->
   <!-- Test dependencies -->
