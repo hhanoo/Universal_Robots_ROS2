@@ -37,11 +37,11 @@ int main(int argc, char** argv) {
     }
 
     RCLCPP_INFO(client->get_logger(), "✅ Robot connected!");
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========================================");
     RCLCPP_INFO(client->get_logger(), "  MoveJ Example: Joint Space Motion");
     RCLCPP_INFO(client->get_logger(), "========================================");
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
 
     // Example 1: Move to home position
     RCLCPP_INFO(client->get_logger(), "Example 1: Moving to HOME position");
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(1s);
 
     // Example 2: Move to target position
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "Example 2: Moving to TARGET position");
     std::vector<double> target = {0.5, -1.2, 1.0, -1.5, -1.57, 0.5};
 
@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(1s);
 
     // Example 3: Return to home
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "Example 3: Returning to HOME");
 
     if (client->moveJ(home, 0.3, true)) {
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
         RCLCPP_ERROR(client->get_logger(), "❌ Failed to return to HOME");
     }
 
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========================================");
     RCLCPP_INFO(client->get_logger(), "  MoveJ Example Completed!");
     RCLCPP_INFO(client->get_logger(), "========================================");

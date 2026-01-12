@@ -77,11 +77,11 @@ int main(int argc, char** argv) {
     }
 
     RCLCPP_INFO(client->get_logger(), "✅ Robot connected!");
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========================================");
     RCLCPP_INFO(client->get_logger(), "  Complete UR Control Example");
     RCLCPP_INFO(client->get_logger(), "========================================");
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
 
     std::this_thread::sleep_for(1s);
 
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(1s);
 
     // ========== 2. MoveJ to Home ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 2. MoveJ to Home ==========");
     std::vector<double> home = {0.0, -1.57, 1.57, -1.57, -1.57, 0.0};
 
@@ -114,14 +114,14 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(2s);
 
     // ========== 3. Digital Output Control ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 3. Digital Output Control ==========");
     RCLCPP_INFO(client->get_logger(), "Turning ON DO[0] (Standard output)...");
     client->setDigitalOut(0, true);
     std::this_thread::sleep_for(1s);
 
     // ========== 4. MoveJ to Pre-Pick Position ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 4. MoveJ to Pre-Pick ==========");
     std::vector<double> pre_pick = {0.5, -1.2, 1.0, -1.5, -1.57, 0.5};
 
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(1s);
 
     // ========== 5. MoveL Down (Simulated Pick) ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 5. MoveL Down (Pick) ==========");
 
     // Create T-matrix for downward motion (example values)
@@ -153,14 +153,14 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(1s);
 
     // ========== 6. Gripper Control (Simulated with DO) ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 6. Gripper Control (DO[1]) ==========");
     RCLCPP_INFO(client->get_logger(), "Closing gripper (DO[1] = HIGH)...");
     client->setDigitalOut(1, true);
     std::this_thread::sleep_for(1s);
 
     // ========== 7. MoveL Up ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 7. MoveL Up ==========");
 
     auto tmatrix_up = createTMatrix(
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(1s);
 
     // ========== 8. MoveJ to Place Position ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 8. MoveJ to Place Position ==========");
     std::vector<double> place = {-0.5, -1.2, 1.0, -1.5, -1.57, -0.5};
 
@@ -190,14 +190,14 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(1s);
 
     // ========== 9. Release Object ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 9. Release Object ==========");
     RCLCPP_INFO(client->get_logger(), "Opening gripper (DO[1] = LOW)...");
     client->setDigitalOut(1, false);
     std::this_thread::sleep_for(1s);
 
     // ========== 10. Return to Home ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 10. Return to Home ==========");
 
     if (client->moveJ(home, 0.3, true)) {
@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
     }
 
     // ========== 11. Turn OFF Outputs ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 11. Cleanup ==========");
     RCLCPP_INFO(client->get_logger(), "Turning OFF all outputs...");
     client->setDigitalOut(0, false);
@@ -219,11 +219,11 @@ int main(int argc, char** argv) {
 
     std::this_thread::sleep_for(1s);
 
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========================================");
     RCLCPP_INFO(client->get_logger(), "  ✅ Complete Example Finished!");
     RCLCPP_INFO(client->get_logger(), "========================================");
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "Demonstrated features:");
     RCLCPP_INFO(client->get_logger(), "  ✓ Speed slider control");
     RCLCPP_INFO(client->get_logger(), "  ✓ MoveJ (joint space motion)");

@@ -39,11 +39,11 @@ int main(int argc, char** argv) {
     }
 
     RCLCPP_INFO(client->get_logger(), "✅ Robot connected!");
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========================================");
     RCLCPP_INFO(client->get_logger(), "  I/O and Speed Control Example");
     RCLCPP_INFO(client->get_logger(), "========================================");
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
 
     // Wait for I/O states to be received
     std::this_thread::sleep_for(1s);
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(2s);
 
     // ========== Digital I/O Control ==========
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== Digital I/O Control ==========");
 
     // Read digital inputs (pins 0-7: Standard, 8-15: Configurable, 16-17: Tool)
@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(1s);
 
     // Set digital outputs
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "Setting digital outputs...");
 
     // Example: Set DO[0] to HIGH
@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
     std::this_thread::sleep_for(1s);
 
     // Example: Toggle multiple outputs
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "Toggling DO[0-3] (Standard outputs)...");
 
     for (int i = 0; i < 3; ++i) {
@@ -142,7 +142,7 @@ int main(int argc, char** argv) {
     }
 
     // Read digital outputs
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "Reading digital outputs...");
     for (int pin = 0; pin < 18; ++pin) {
         bool        state = client->getDigitalOut(pin);
@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
                     pin, pin_type.c_str(), state ? "HIGH" : "LOW");
     }
 
-    RCLCPP_INFO(client->get_logger(), "");
+    RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========================================");
     RCLCPP_INFO(client->get_logger(), "  I/O and Speed Control Example Completed!");
     RCLCPP_INFO(client->get_logger(), "========================================");
