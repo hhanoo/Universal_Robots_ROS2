@@ -6,14 +6,20 @@ Python 기반 UR 로봇 제어 라이브러리 (`URRobotController` 클래스)
 
 이 패키지는 UR 로봇을 제어하기 위한 Python 라이브러리(`URRobotController`)와 예제 프로그램을 제공합니다.
 
+**주요 특징:**
+
+- 🎯 **Non-Node 클래스**: `URRobotController`는 ROS2 Node를 상속하지 않고, Node 인스턴스를 생성자에서 받아 사용
+- 🔄 **재사용 가능**: 여러 노드에서 동일한 컨트롤러 인스턴스를 공유 가능
+- 🚀 **간편한 API**: 복잡한 ROS2 Action/Service 호출을 간단한 메서드로 추상화
+
 **제공 기능:**
 
 - ✅ **MoveJ**: 관절 공간 모션 제어
 - ✅ **MoveL**: 직교 공간 직선 모션 제어
-- ✅ **Speed Slider**: 속도 제어
-- ✅ **Digital I/O**: 디지털 입출력 제어
-- ✅ **State Monitoring**: 로봇 상태 모니터링
-- ✅ **TCP Pose Tracking**: TF를 통한 TCP 포즈 추적
+- ✅ **Speed Control**: 속도 슬라이더 제어 및 모니터링
+- ✅ **Digital I/O**: 디지털 입출력 제어 (18 pins)
+- ✅ **State Monitoring**: 실시간 로봇 상태 모니터링
+- ✅ **TCP Pose Tracking**: TF2를 통한 TCP 포즈 추적 (4x4 변환 행렬)
 
 ## 📦 패키지 정보
 
@@ -285,13 +291,28 @@ success = robot.move_l(tmatrix, velocity=0.3, wait=True)
 ### Speed Slider 제어
 
 ```python
-# Set speed to 50%
+# Set speed slider to 50%
 robot.set_speed_slider(0.5)
 
-# Get current speed
-current_speed = robot.get_speed_scaling()
-node.get_logger().info(f'Current speed: {current_speed * 100:.1f}%')
+# Get user-set speed slider value
+slider_value = robot.get_speed_slider()
+node.get_logger().info(f'Speed slider: {slider_value * 100:.1f}%')
+
+# Get actual robot speed scaling
+speed_scaling = robot.get_speed_scaling()
+node.get_logger().info(f'Actual speed: {speed_scaling * 100:.1f}%')
+
+# Change speed during motion (async mode)
+robot.set_speed_slider(0.3, wait=False)  # Non-blocking call
 ```
+
+**Speed Slider vs Speed Scaling:**
+
+- **`speed_slider`**: 사용자가 설정한 속도 값 (제어 입력)
+- **`speed_scaling`**: 로봇이 실제로 사용하는 속도 값 (실제 출력)
+- **관계식**: `speed_scaling = speed_slider × target_speed_fraction`
+- **정상 동작**: `target_speed_fraction = 1.0`일 때 두 값이 동일
+- **비동기 모드**: `wait=False` 사용 시 모션 중에도 속도 변경 가능
 
 ### Digital I/O 제어
 
@@ -323,7 +344,14 @@ if joints:
 
 # Get TCP pose (4x4 transformation matrix)
 tcp_pose = robot.get_tcp_pose()
-node.get_logger().info(f'TCP position: [{tcp_pose[0,3]:.3f}, {tcp_pose[1,3]:.3f}, {tcp_pose[2,3]:.3f}]')
+if robot.is_tcp_pose_available():
+    position = tcp_pose[:3, 3]  # Extract [x, y, z]
+    node.get_logger().info(f'TCP position: [{position[0]:.3f}, {position[1]:.3f}, {position[2]:.3f}]')
+
+# Monitor speed values
+slider = robot.get_speed_slider()     # User-set value
+scaling = robot.get_speed_scaling()   # Actual robot speed
+node.get_logger().info(f'Speed - Slider: {slider:.2f}, Scaling: {scaling:.2f}')
 ```
 
 ---
@@ -416,7 +444,109 @@ ros2 run ur_control_client_py my_program
 
 ### URRobotController 클래스
 
-#### Motion Control
+`URRobotController`는 non-Node 클래스로, ROS2 Node 인스턴스를 생성자에서 받아 사용합니다.
+
+**구조:**
+
+```python
+class URRobotController:
+    def __init__(self, node: Node):
+        """
+        Initialize UR Robot Controller.
+        
+        Args:
+            node: ROS2 node instance for creating subscriptions, clients, etc.
+        """
+```
+
+**내부 상태 변수:**
+
+```python
+# Robot connection
+self.connected: bool              # Robot connection status
+
+# Joint states
+self.latest_joint_state: JointState | None  # Latest joint state message
+
+# Speed control
+self.speed_slider: float          # User-set speed slider [0.01 ~ 1.0]
+self.speed_scaling: float         # Actual robot speed [0.0 ~ 1.0]
+
+# Digital I/O
+self.digital_in_states: list[bool]   # 18 digital inputs
+self.digital_out_states: list[bool]  # 18 digital outputs
+
+# TCP pose (via TF2)
+self.tcp_pose_matrix: np.ndarray  # 4x4 transformation matrix
+self.tcp_pose_available: bool     # TF availability status
+```
+
+---
+
+#### State Monitoring (상태 조회)
+
+로봇의 현재 상태를 조회하는 메서드들입니다.
+
+```python
+# Check robot connection
+is_connected() -> bool
+
+# Get joint positions (6 joints in radians)
+get_joint_positions() -> list[float] | None
+
+# Get TCP pose as 4x4 transformation matrix
+get_tcp_pose() -> np.ndarray  # 4x4 matrix (base -> tool0_controller)
+
+# Check if TCP pose is available from TF
+is_tcp_pose_available() -> bool
+
+# Get user-set speed slider value
+get_speed_slider() -> float  # [0.01 ~ 1.0]
+
+# Get actual robot speed scaling
+get_speed_scaling() -> float  # [0.0 ~ 1.0]
+
+# Get digital input state
+get_digital_in(pin: int) -> bool  # pin: 0-17
+
+# Get digital output state
+get_digital_out(pin: int) -> bool  # pin: 0-17
+```
+
+**사용 예시:**
+
+```python
+# Robot connection check
+if robot.is_connected():
+    node.get_logger().info('✅ Robot connected!')
+
+# Joint positions
+joints = robot.get_joint_positions()
+if joints:
+    node.get_logger().info(f'Joints: {joints}')
+
+# TCP pose (NumPy array)
+tcp_pose = robot.get_tcp_pose()
+position = tcp_pose[:3, 3]  # Extract position [x, y, z]
+node.get_logger().info(f'TCP position: {position}')
+
+# Speed monitoring
+slider = robot.get_speed_slider()    # User-set value
+scaling = robot.get_speed_scaling()  # Actual robot speed
+node.get_logger().info(f'Slider: {slider:.2f}, Scaling: {scaling:.2f}')
+
+# Digital I/O states
+for i in range(8):
+    di_state = robot.get_digital_in(i)
+    do_state = robot.get_digital_out(i)
+    node.get_logger().info(f'DI[{i}]: {di_state}, DO[{i}]: {do_state}')
+```
+
+---
+
+#### Motion Control (모션 제어)
+
+관절 공간 및 직교 공간에서 로봇을 제어합니다.
 
 ```python
 move_j(joints: list, velocity: float = 0.5, wait: bool = True) -> bool
@@ -437,32 +567,54 @@ move_l(tmatrix: list, velocity: float = 0.5, wait: bool = True) -> bool
 
 ---
 
-#### Speed Control
+#### Speed Control (속도 제어)
+
+로봇의 속도 슬라이더를 제어합니다.
 
 ```python
-set_speed_slider(fraction: float) -> bool  # [0.01 ~ 1.0]
-get_speed_scaling() -> float
+set_speed_slider(slider_value: float, wait: bool = True) -> bool | Future
+```
+
+**Parameters:**
+
+- `slider_value`: 속도 슬라이더 값 [0.01 ~ 1.0]
+- `wait`: 서비스 응답 대기 여부
+  - `True` (기본값): 동기 모드, 완료될 때까지 대기
+  - `False`: 비동기 모드, 즉시 반환 (모션 중 속도 변경 시 사용)
+
+**Returns:**
+
+- `wait=True`: `bool` (성공 여부)
+- `wait=False`: `Future` (비동기 호출 결과)
+
+**사용 예시:**
+
+```python
+# Synchronous mode (wait for response)
+success = robot.set_speed_slider(0.5, wait=True)
+if success:
+    node.get_logger().info('✅ Speed changed to 50%')
+
+# Asynchronous mode (change speed during motion)
+robot.set_speed_slider(0.3, wait=False)  # Non-blocking
+# Motion continues while speed changes
+```
+
+**속도 값 조회:**
+
+```python
+get_speed_slider() -> float   # User-set value
+get_speed_scaling() -> float  # Actual robot speed
 ```
 
 ---
 
-#### I/O Control
+#### I/O Control (디지털 I/O 제어)
+
+디지털 출력을 제어합니다 (입력은 State Monitoring 참조).
 
 ```python
 set_digital_out(pin: int, value: bool) -> bool  # pin: 0-17
-get_digital_in(pin: int) -> bool
-get_digital_out(pin: int) -> bool
-```
-
----
-
-#### State Monitoring
-
-```python
-is_connected() -> bool
-get_joint_positions() -> list or None
-get_tcp_pose() -> np.ndarray  # 4x4 transformation matrix
-is_tcp_pose_available() -> bool
 ```
 
 ---
@@ -474,6 +626,113 @@ is_tcp_pose_available() -> bool
 | 0-7       | Standard     | 표준 디지털 I/O        |
 | 8-15      | Configurable | 설정 가능한 디지털 I/O |
 | 16-17     | Tool         | 툴 디지털 I/O          |
+
+---
+
+## ⚡ 속도 제어의 이해
+
+### Speed Slider vs Speed Scaling
+
+UR 로봇의 속도 제어는 두 가지 값으로 구성됩니다:
+
+#### 1. **Speed Slider** (사용자 제어 값)
+- 사용자가 `set_speed_slider()`로 설정하는 값
+- `get_speed_slider()`로 조회 가능
+- 범위: `[0.01 ~ 1.0]`
+- **의미**: "로봇이 이 속도로 동작하도록 설정"
+
+#### 2. **Speed Scaling** (실제 로봇 속도)
+- 로봇이 실제로 사용하는 속도 값
+- `get_speed_scaling()`로 조회 가능
+- 범위: `[0.0 ~ 1.0]`
+- **의미**: "로봇이 실제로 이 속도로 동작 중"
+
+### 속도 관계식
+
+```
+speed_scaling = speed_slider × target_speed_fraction
+```
+
+**정상 동작 시:**
+- `target_speed_fraction = 1.0` (UR 로봇 내부 값)
+- ∴ `speed_scaling = speed_slider`
+- 즉, 설정한 값과 실제 값이 동일
+
+**예외 상황:**
+- Teach Pendant에서 속도를 변경한 경우
+- 안전 기능이 활성화된 경우
+- 이런 경우 `speed_scaling ≠ speed_slider`
+
+### 동기 vs 비동기 모드
+
+#### 동기 모드 (`wait=True`)
+```python
+# 서비스 호출이 완료될 때까지 대기
+success = robot.set_speed_slider(0.5, wait=True)
+if success:
+    print("✅ Speed changed!")
+```
+
+**특징:**
+- 블로킹 호출 (완료될 때까지 대기)
+- 반환값: `bool` (성공 여부)
+- 사용 시점: 모션 전에 속도를 미리 설정
+
+#### 비동기 모드 (`wait=False`)
+```python
+# 서비스 호출 후 즉시 반환
+future = robot.set_speed_slider(0.8, wait=False)
+# 모션이 계속 실행됨
+```
+
+**특징:**
+- 논블로킹 호출 (즉시 반환)
+- 반환값: `Future` (비동기 결과)
+- 사용 시점: **모션 중에 속도를 실시간으로 변경**
+
+### 실전 예제
+
+#### 예제 1: 느린 접근 → 빠른 복귀
+```python
+# Slow approach (30%)
+robot.set_speed_slider(0.3)
+robot.move_j(approach_position, velocity=0.5, wait=True)
+
+# Fast return (100%)
+robot.set_speed_slider(1.0)
+robot.move_j(home_position, velocity=0.8, wait=True)
+```
+
+#### 예제 2: 모션 중 속도 변경
+```python
+# Start slow motion
+robot.set_speed_slider(0.3)
+robot.move_j(target_position, velocity=0.8, wait=False)  # Non-blocking
+
+# Wait 2 seconds
+time.sleep(2.0)
+
+# Speed up during motion (async mode)
+robot.set_speed_slider(1.0, wait=False)
+
+# Continue until motion completes
+# (Robot will accelerate to 100% during motion)
+```
+
+#### 예제 3: 속도 모니터링
+```python
+import time
+
+# Set speed slider
+robot.set_speed_slider(0.5)
+
+# Monitor actual speed
+for i in range(10):
+    slider = robot.get_speed_slider()    # 0.5 (사용자 설정값)
+    scaling = robot.get_speed_scaling()  # ~0.5 (실제 로봇 속도)
+    print(f"Slider: {slider:.2f}, Scaling: {scaling:.2f}")
+    time.sleep(0.5)
+```
 
 ---
 
@@ -491,7 +750,12 @@ MoveJ action server not available
 # Motion Action Server가 실행 중인지 확인
 ros2 action list
 # /move_j 와 /move_l 이 있어야 함
+
+# 없는 경우 실행
+ros2 run ur_motion motion_action_server
 ```
+
+---
 
 ### 2. 로봇 연결 실패
 
@@ -505,7 +769,13 @@ Failed to connect to robot
 # UR Driver가 실행 중인지 확인
 ros2 topic list | grep joint_states
 # /joint_states 토픽이 있어야 함
+
+# 없는 경우 UR Driver 실행
+ros2 launch ur_robot_driver_wrapper bringup.launch.py \
+    robot_ip:=192.168.1.25 ur_type:=ur10e
 ```
+
+---
 
 ### 3. I/O 서비스 사용 불가
 
@@ -521,6 +791,8 @@ ros2 service list | grep set_io
 # /io_and_status_controller/set_io 서비스가 있어야 함
 ```
 
+---
+
 ### 4. MoveL 실패
 
 ```
@@ -531,7 +803,88 @@ MoveL failed
 
 - 목표 위치가 로봇의 작업 공간 내에 있는지 확인
 - RViz에서 충돌이 발생하지 않는지 확인
-- 속도를 낮춰서 다시 시도
+- 속도를 낮춰서 다시 시도:
+  ```python
+  robot.set_speed_slider(0.3)
+  robot.move_l(tmatrix, velocity=0.2)
+  ```
+
+---
+
+### 5. Speed Slider와 Speed Scaling이 다름
+
+```python
+slider = robot.get_speed_slider()    # 1.0
+scaling = robot.get_speed_scaling()  # 0.5  ← Why different?
+```
+
+**원인:**
+
+- Teach Pendant에서 속도를 수동으로 변경함
+- 안전 기능이 활성화됨 (Safety Stop, Reduced Mode 등)
+- `target_speed_fraction` 값이 1.0이 아님
+
+**해결:**
+
+```python
+# Check if values match
+slider = robot.get_speed_slider()
+scaling = robot.get_speed_scaling()
+
+if abs(slider - scaling) > 0.01:
+    node.get_logger().warn(
+        f'Speed mismatch! Slider: {slider:.2f}, Scaling: {scaling:.2f}'
+    )
+    node.get_logger().warn('Check Teach Pendant or Safety settings')
+```
+
+---
+
+### 6. TCP Pose를 가져올 수 없음
+
+```python
+tcp_pose = robot.get_tcp_pose()
+# Returns identity matrix (no actual pose)
+```
+
+**원인:**
+
+- TF 변환이 아직 준비되지 않음
+- UR Driver가 TF를 브로드캐스트하지 않음
+
+**해결:**
+
+```python
+# Wait for TF to be available
+import time
+
+while rclpy.ok() and not robot.is_tcp_pose_available():
+    rclpy.spin_once(node, timeout_sec=0.1)
+    time.sleep(0.1)
+
+if robot.is_tcp_pose_available():
+    tcp_pose = robot.get_tcp_pose()
+    node.get_logger().info('✅ TCP pose available!')
+```
+
+---
+
+### 7. 모션 중 속도 변경이 안됨
+
+```python
+# This will block and cause threading issues
+robot.move_j(target, wait=False)
+robot.set_speed_slider(0.5, wait=True)  # ← Blocking call!
+```
+
+**해결:**
+
+```python
+# Use async mode for speed change during motion
+robot.move_j(target, velocity=0.8, wait=False)
+time.sleep(2.0)
+robot.set_speed_slider(1.0, wait=False)  # ← Non-blocking!
+```
 
 ---
 

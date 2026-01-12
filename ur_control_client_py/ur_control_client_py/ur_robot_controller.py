@@ -37,6 +37,9 @@ class URRobotController:
         robot.move_j([0, -1.57, 1.57, -1.57, -1.57, 0], 0.5)
     """
 
+    # ========================================================
+    # Initialization
+    # ========================================================
     def __init__(self, node: Node):
         """
         Initialize UR Robot Controller.
@@ -75,7 +78,8 @@ class URRobotController:
         # State variables
         self.latest_joint_state = None
         self.connected = False
-        self.speed_scaling = 1.0
+        self.speed_slider = 1.0  # User-set speed slider value
+        self.speed_scaling = 1.0  # Actual speed scaling from robot (speed_slider * target_speed_fraction)
         self.digital_in_states = [False] * 18
         self.digital_out_states = [False] * 18
 
@@ -87,8 +91,80 @@ class URRobotController:
 
         self.node.get_logger().info("UR Robot Controller initialized")
 
-    # ========== Motion Control ==========
+    # ========================================================
+    # State Monitoring (Public Query Methods)
+    # ========================================================
+    def is_connected(self):
+        """Check if robot is connected"""
+        return self.connected
 
+    def get_joint_positions(self):
+        """
+        Get latest joint positions
+
+        Returns:
+            list: 6 joint positions in radians, or None if not available
+        """
+        if self.latest_joint_state and self.connected:
+            if len(self.latest_joint_state.position) >= 6:
+                return list(self.latest_joint_state.position[:6])
+        return None
+
+    def get_tcp_pose(self):
+        """
+        Get current TCP pose as 4x4 transformation matrix.
+
+        Returns:
+            np.ndarray: 4x4 homogeneous transformation matrix (base -> tool0_controller)
+        """
+        return self.tcp_pose_matrix
+
+    def is_tcp_pose_available(self):
+        """
+        Check if TCP pose is available from TF.
+
+        Returns:
+            bool: True if TCP pose is being tracked via TF
+        """
+        return self.tcp_pose_available
+
+    def get_speed_slider(self):
+        """
+        Get current speed slider value (user-set value).
+
+        Returns:
+            float: Speed slider fraction [0.01 ~ 1.0]
+        """
+        return self.speed_slider
+
+    def get_speed_scaling(self):
+        """
+        Get current speed scaling (actual robot speed).
+
+        Note:
+            speed_scaling = speed_slider * target_speed_fraction
+            In normal operation (target_speed_fraction=1.0), they are the same.
+
+        Returns:
+            float: Actual speed scaling [0.0 ~ 1.0]
+        """
+        return self.speed_scaling
+
+    def get_digital_in(self, pin):
+        """Get digital input pin state"""
+        if 0 <= pin < 18:
+            return self.digital_in_states[pin]
+        return False
+
+    def get_digital_out(self, pin):
+        """Get digital output pin state"""
+        if 0 <= pin < 18:
+            return self.digital_out_states[pin]
+        return False
+
+    # ========================================================
+    # Motion Control
+    # ========================================================
     def move_j(self, joints, velocity=0.5, wait=True):
         """
         Execute MoveJ motion
@@ -197,21 +273,25 @@ class URRobotController:
             self.node.get_logger().error(f"❌ MoveL failed: {result.message}")
             return False
 
-    # ========== Speed Control ==========
-
-    def set_speed_slider(self, fraction):
+    # ========================================================
+    # Speed Control
+    # ========================================================
+    def set_speed_slider(self, slider_value, wait=True):
         """
-        Set speed slider fraction
+        Set speed slider value
 
         Args:
-            fraction (float): Speed slider [0.01 ~ 1.0]
+            slider_value (float): Speed slider value [0.01 ~ 1.0]
+            wait (bool): Wait for response (default: True)
+                        Set to False to call asynchronously during motion
 
         Returns:
-            bool: True if succeeded
+            bool: True if succeeded (when wait=True)
+            Future: Service call future (when wait=False)
         """
-        if not 0.01 <= fraction <= 1.0:
+        if not 0.01 <= slider_value <= 1.0:
             self.node.get_logger().warn(
-                f"Speed slider must be in [0.01, 1.0], got {fraction}"
+                f"Speed slider must be in [0.01, 1.0], got {slider_value}"
             )
             return False
 
@@ -220,25 +300,36 @@ class URRobotController:
             return False
 
         request = SetSpeedSliderFraction.Request()
-        request.speed_slider_fraction = fraction
+        request.speed_slider_fraction = slider_value
 
         future = self.speed_slider_client.call_async(request)
+
+        if not wait:
+            # Async mode: return future without waiting
+            # Update internal state immediately (optimistic update)
+            self.speed_slider = slider_value
+            self.node.get_logger().info(
+                f"🔄 Speed slider change requested: {slider_value * 100:.1f}% (async)"
+            )
+            return future
+
+        # Sync mode: wait for response
         rclpy.spin_until_future_complete(self.node, future)
 
         response = future.result()
         if response.success:
-            self.node.get_logger().info(f"✅ Speed slider set to {fraction * 100:.1f}%")
+            self.speed_slider = slider_value  # Update internal state
+            self.node.get_logger().info(
+                f"✅ Speed slider set to {slider_value * 100:.1f}%"
+            )
         else:
             self.node.get_logger().warn("❌ Failed to set speed slider")
 
         return response.success
 
-    def get_speed_scaling(self):
-        """Get current speed scaling"""
-        return self.speed_scaling
-
-    # ========== I/O Control ==========
-
+    # ========================================================
+    # I/O Control
+    # ========================================================
     def set_digital_out(self, pin, value):
         """
         Set digital output pin
@@ -276,38 +367,9 @@ class URRobotController:
 
         return response.success
 
-    def get_digital_in(self, pin):
-        """Get digital input pin state"""
-        if 0 <= pin < 18:
-            return self.digital_in_states[pin]
-        return False
-
-    def get_digital_out(self, pin):
-        """Get digital output pin state"""
-        if 0 <= pin < 18:
-            return self.digital_out_states[pin]
-        return False
-
-    # ========== State Monitoring ==========
-
-    def is_connected(self):
-        """Check if robot is connected"""
-        return self.connected
-
-    def get_joint_positions(self):
-        """
-        Get latest joint positions
-
-        Returns:
-            list: 6 joint positions in radians, or None if not available
-        """
-        if self.latest_joint_state and self.connected:
-            if len(self.latest_joint_state.position) >= 6:
-                return list(self.latest_joint_state.position[:6])
-        return None
-
-    # ========== Callbacks ==========
-
+    # ========================================================
+    # Internal Callbacks
+    # ========================================================
     def joint_state_callback(self, msg):
         """Callback for joint state updates"""
         self.latest_joint_state = msg
@@ -351,8 +413,9 @@ class URRobotController:
                 f"🔌 I/O states received (DI: {len(msg.digital_in_states)}, DO: {len(msg.digital_out_states)})"
             )
 
-    # ========== TCP Pose Tracking ==========
-
+    # ========================================================
+    # Internal Helper Methods
+    # ========================================================
     def _update_tcp_pose_from_tf(self):
         """Update TCP pose from TF transform (internal method called by joint_state_callback)"""
         try:
@@ -379,24 +442,6 @@ class URRobotController:
                     f"Lost TF transform (base -> tool0_controller): {e}"
                 )
                 self.tcp_pose_available = False
-
-    def get_tcp_pose(self):
-        """
-        Get current TCP pose as 4x4 transformation matrix.
-
-        Returns:
-            np.ndarray: 4x4 homogeneous transformation matrix (base -> tool0_controller)
-        """
-        return self.tcp_pose_matrix
-
-    def is_tcp_pose_available(self):
-        """
-        Check if TCP pose is available from TF.
-
-        Returns:
-            bool: True if TCP pose is being tracked via TF
-        """
-        return self.tcp_pose_available
 
     def _transform_to_matrix(self, transform):
         """
