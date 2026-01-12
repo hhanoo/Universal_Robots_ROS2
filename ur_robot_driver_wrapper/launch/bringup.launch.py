@@ -1,11 +1,25 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction  # Declare args / include sub-launch / opaque function (런치 인자 선언 / 하위 런치 포함 / 불투명 함수)
-from launch.conditions import UnlessCondition, IfCondition  # Conditional execution (조건부 실행)
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution  # Runtime args + safe path join (런치 설정값 + 안전한 경로 결합)
-from launch.launch_description_sources import PythonLaunchDescriptionSource  # Source type for .launch.py (파이썬 런치 소스)
-from launch_ros.substitutions import FindPackageShare  # Find package share dir (패키지 share 경로 찾기)
-from launch_ros.actions import Node  # ROS2 node action (ROS2 노드 실행)
+from launch.actions import (  # Declare args / include sub-launch / opaque function (런치 인자 선언 / 하위 런치 포함 / 불투명 함수)
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
+from launch.conditions import (
+    IfCondition,  # Conditional execution (조건부 실행)
+    UnlessCondition,
+)
+from launch.launch_description_sources import (
+    PythonLaunchDescriptionSource,
+)  # Source type for .launch.py (파이썬 런치 소스)
 from launch.substitutions import PythonExpression  # Python expression (파이썬 표현식)
+from launch.substitutions import (  # Runtime args + safe path join (런치 설정값 + 안전한 경로 결합)
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
+from launch_ros.actions import Node  # ROS2 node action (ROS2 노드 실행)
+from launch_ros.substitutions import (
+    FindPackageShare,
+)  # Find package share dir (패키지 share 경로 찾기)
 
 
 def launch_setup(context, *args, **kwargs):
@@ -20,16 +34,27 @@ def launch_setup(context, *args, **kwargs):
     #   (값은 CLI 인자 또는 DeclareLaunchArgument 기본값에서 옴)
     # =========================================================
     # Common arguments (공통 인자)
-    robot_ip = LaunchConfiguration("robot_ip")  # Robot/URSIM IP address (로봇/URSIM IP 주소)
+    robot_ip = LaunchConfiguration(
+        "robot_ip"
+    )  # Robot/URSIM IP address (로봇/URSIM IP 주소)
     # Robot-related arguments (로봇 관련 인자)
     ur_type = LaunchConfiguration("ur_type")  # UR robot model type (UR 로봇 모델 타입)
-    use_fake_hardware = LaunchConfiguration("use_fake_hardware")  # Fake HW flag: "true"/"false" (가상 HW 플래그)
-    kinematics_params = LaunchConfiguration("kinematics_params")  # Kinematics calibration file path (기구학 보정 파일 경로)
+    use_fake_hardware = LaunchConfiguration(
+        "use_fake_hardware"
+    )  # Fake HW flag: "true"/"false" (가상 HW 플래그)
+    kinematics_params = LaunchConfiguration(
+        "kinematics_params"
+    )  # Kinematics calibration file path (기구학 보정 파일 경로)
     # Controller-related arguments (컨트롤러 관련 인자)
-    controller_spawner_timeout = LaunchConfiguration("controller_spawner_timeout")  # Spawner timeout (스폰너 타임아웃)
-    initial_joint_controller = LaunchConfiguration("initial_joint_controller")  # Initial joint controller (초기 조인트 컨트롤러)
+    controller_spawner_timeout = LaunchConfiguration(
+        "controller_spawner_timeout"
+    )  # Spawner timeout (스폰너 타임아웃)
+    initial_joint_controller = LaunchConfiguration(
+        "initial_joint_controller"
+    )  # Initial joint controller (초기 조인트 컨트롤러)
     activate_joint_controller = LaunchConfiguration(
-        "activate_joint_controller")  # Activate joint controller flag (조인트 컨트롤러 활성화 플래그)
+        "activate_joint_controller"
+    )  # Activate joint controller flag (조인트 컨트롤러 활성화 플래그)
 
     # =========================================================
     # 2. Compute Derived Parameters (파생 파라미터 계산)
@@ -42,7 +67,9 @@ def launch_setup(context, *args, **kwargs):
     # - This ensures proper behavior in different deployment scenarios
     #   (다양한 배포 시나리오에서 적절한 동작 보장)
     # =========================================================
-    headless_mode = PythonExpression(["'false' if '", use_fake_hardware, "' == 'true' else 'true'"])
+    headless_mode = PythonExpression(
+        ["'false' if '", use_fake_hardware, "' == 'true' else 'true'"]
+    )
 
     # =========================================================
     # 3. Construct File Paths (파일 경로 구성)
@@ -54,11 +81,15 @@ def launch_setup(context, *args, **kwargs):
     # - These paths are resolved at launch-time
     #   (이 경로들은 런치 시점에 해석됨)
     # =========================================================
-    rviz_config_file = PathJoinSubstitution([
-        FindPackageShare("ur_description_wrapper"),  # Package share directory (패키지 share 디렉토리)
-        "rviz",  # Subdirectory (하위 디렉토리)
-        "view_robot.rviz",  # RViz configuration file (RViz 설정 파일)
-    ])
+    rviz_config_file = PathJoinSubstitution(
+        [
+            FindPackageShare(
+                "ur_description_wrapper"
+            ),  # Package share directory (패키지 share 디렉토리)
+            "rviz",  # Subdirectory (하위 디렉토리)
+            "view_robot.rviz",  # RViz configuration file (RViz 설정 파일)
+        ]
+    )
 
     # =========================================================
     # 4. Create Nodes (노드 생성)
@@ -108,11 +139,16 @@ def launch_setup(context, *args, **kwargs):
     # -----------------------------------------------------
     driver_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            PathJoinSubstitution([
-                FindPackageShare("ur_robot_driver_wrapper"),  # Package name (패키지 이름)
-                "launch",  # Launch directory (런치 디렉토리)
-                "driver.launch.py",  # Target launch file (대상 런치 파일)
-            ])),
+            PathJoinSubstitution(
+                [
+                    FindPackageShare(
+                        "ur_robot_driver_wrapper"
+                    ),  # Package name (패키지 이름)
+                    "launch",  # Launch directory (런치 디렉토리)
+                    "driver.launch.py",  # Target launch file (대상 런치 파일)
+                ]
+            )
+        ),
         launch_arguments={  # Arguments passed to driver.launch.py (driver.launch.py에 전달할 인자)
             "robot_ip": robot_ip,  # Robot IP for connection (연결을 위한 로봇 IP)
             "ur_type": ur_type,  # Robot model type (로봇 모델 타입)
@@ -162,14 +198,18 @@ def launch_setup(context, *args, **kwargs):
     # -----------------------------------------------------
     controllers_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            PathJoinSubstitution([
-                FindPackageShare("ur_robot_driver_wrapper"),  # Package name (패키지 이름)
-                "launch",  # Launch directory (런치 디렉토리)
-                "controllers.launch.py",  # Target launch file (대상 런치 파일)
-            ])),
+            PathJoinSubstitution(
+                [
+                    FindPackageShare(
+                        "ur_robot_driver_wrapper"
+                    ),  # Package name (패키지 이름)
+                    "launch",  # Launch directory (런치 디렉토리)
+                    "controllers.launch.py",  # Target launch file (대상 런치 파일)
+                ]
+            )
+        ),
         launch_arguments={  # Arguments passed to controllers.launch.py (controllers.launch.py에 전달할 인자)
-            "use_fake_hardware":
-                use_fake_hardware,  # Hardware mode (affects tcp_pose_broadcaster) (하드웨어 모드, tcp_pose_broadcaster에 영향)
+            "use_fake_hardware": use_fake_hardware,  # Hardware mode (affects tcp_pose_broadcaster) (하드웨어 모드, tcp_pose_broadcaster에 영향)
             "controller_spawner_timeout": controller_spawner_timeout,  # Spawner timeout (스폰너 타임아웃)
             "initial_joint_controller": initial_joint_controller,  # Initial controller to activate (활성화할 초기 컨트롤러)
             "activate_joint_controller": activate_joint_controller,  # Activate controller flag (컨트롤러 활성화 플래그)
@@ -193,13 +233,20 @@ def launch_setup(context, *args, **kwargs):
     #   (가상 하드웨어는 대시보드 서비스가 필요 없음)
     # -----------------------------------------------------
     dashboard_launch = IncludeLaunchDescription(
-        condition=UnlessCondition(use_fake_hardware),  # Conditional execution (조건부 실행)
+        condition=UnlessCondition(
+            use_fake_hardware
+        ),  # Conditional execution (조건부 실행)
         launch_description_source=PythonLaunchDescriptionSource(
-            PathJoinSubstitution([
-                FindPackageShare("ur_robot_driver_wrapper"),  # Package name (패키지 이름)
-                "launch",  # Launch directory (런치 디렉토리)
-                "dashboard.launch.py",  # Target launch file (대상 런치 파일)
-            ])),
+            PathJoinSubstitution(
+                [
+                    FindPackageShare(
+                        "ur_robot_driver_wrapper"
+                    ),  # Package name (패키지 이름)
+                    "launch",  # Launch directory (런치 디렉토리)
+                    "dashboard.launch.py",  # Target launch file (대상 런치 파일)
+                ]
+            )
+        ),
         launch_arguments={  # Arguments passed to dashboard.launch.py (dashboard.launch.py에 전달할 인자)
             "robot_ip": robot_ip,  # Robot IP for dashboard connection (대시보드 연결을 위한 로봇 IP)
         }.items(),
@@ -271,7 +318,8 @@ def generate_launch_description():
             "Example: 192.168.1.25 or 127.0.0.1 for URSIM",
             # (UR 로봇 또는 URSIM IP 주소. 로봇 하드웨어 또는 URSIM 시뮬레이터 연결에 필요.
             #  예: 192.168.1.25 또는 URSIM의 경우 127.0.0.1)
-        ))
+        )
+    )
 
     # -----------------------------------------------------
     # Optional Arguments with Defaults (기본값이 있는 선택 인자)
@@ -291,7 +339,8 @@ def generate_launch_description():
             "Affects joint limits, kinematics, and physical parameters.",
             # (UR 로봇 모델 타입. 사용할 로봇 모델 설정을 결정.
             #  조인트 제한, 기구학, 물리 파라미터에 영향을 줌)
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -303,16 +352,21 @@ def generate_launch_description():
             # (하드웨어 모드 선택.
             #  true = 가상 하드웨어 사용 (로봇 없이 개발/테스트).
             #  false = 실제 하드웨어 또는 URSIM 사용 (로봇 연결 필요))
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
             "kinematics_params",  # Argument name (인자 이름)
-            default_value=PathJoinSubstitution([
-                FindPackageShare("ur_description_wrapper"),  # Package share directory (패키지 share 디렉토리)
-                "config",  # Subdirectory (하위 디렉토리)
-                "calibration_kinematics.yaml",  # Kinematics calibration file (기구학 보정 파일)
-            ]),  # Empty string means "not provided" (빈 문자열은 "제공되지 않음" 의미)
+            default_value=PathJoinSubstitution(
+                [
+                    FindPackageShare(
+                        "ur_description_wrapper"
+                    ),  # Package share directory (패키지 share 디렉토리)
+                    "config",  # Subdirectory (하위 디렉토리)
+                    "calibration_kinematics.yaml",  # Kinematics calibration file (기구학 보정 파일)
+                ]
+            ),  # Empty string means "not provided" (빈 문자열은 "제공되지 않음" 의미)
             description="Path to kinematics calibration file. "
             "Optional. If provided, overrides default kinematics parameters. "
             "Used for robot-specific calibration. "
@@ -321,7 +375,8 @@ def generate_launch_description():
             #  제공되면 기본 기구학 파라미터를 덮어씀.
             #  로봇별 보정에 사용됨.
             #  빈 문자열은 description 패키지의 기본 기구학 사용을 의미)
-        ))
+        )
+    )
 
     # -----------------------------------------------------
     # Controller Configuration Arguments (컨트롤러 설정 인자)
@@ -343,7 +398,8 @@ def generate_launch_description():
             #  컨트롤러를 스폰하기 전 controller_manager가 준비될 때까지 대기 시간.
             #  컨트롤러 스폰 실패 시 이 값을 증가 (예: 느린 하드웨어 초기화).
             #  단위: 초)
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -373,7 +429,8 @@ def generate_launch_description():
                 "freedrive_mode_controller",
                 "passthrough_trajectory_controller",
             ],
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -396,7 +453,8 @@ def generate_launch_description():
             #  컨트롤러는 로드되지만 실행되지 않음.
             #  ros2 control switch_controllers 명령으로 나중에 수동 활성화하려는 경우 사용.
             #  테스트 또는 커스텀 컨트롤러 전환 로직에 유용)
-        ))
+        )
+    )
 
     # =========================================================
     # LaunchDescription Assembly (런치 구성 조립)
@@ -412,4 +470,6 @@ def generate_launch_description():
     # - launch_setup function receives context with resolved arguments
     #   (launch_setup 함수는 해석된 인자가 있는 context를 받음)
     # =========================================================
-    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+    return LaunchDescription(
+        declared_arguments + [OpaqueFunction(function=launch_setup)]
+    )

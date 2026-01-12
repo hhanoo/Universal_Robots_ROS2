@@ -1,9 +1,22 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction  # Declare args / opaque function (런치 인자 선언 / 불투명 함수)
-from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution  # Command execution / find executable / runtime args / safe path join (명령 실행 / 실행 파일 찾기 / 런치 설정값 / 안전한 경로 결합)
+from launch.actions import (  # Declare args / opaque function (런치 인자 선언 / 불투명 함수)
+    DeclareLaunchArgument,
+    OpaqueFunction,
+)
+from launch.substitutions import (  # Command execution / find executable / runtime args / safe path join (명령 실행 / 실행 파일 찾기 / 런치 설정값 / 안전한 경로 결합)
+    Command,
+    FindExecutable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
 from launch_ros.actions import Node  # ROS2 node action (ROS2 노드 실행)
-from launch_ros.parameter_descriptions import ParameterFile, ParameterValue  # Parameter file / value wrapper (파라미터 파일 / 파라미터 값 래퍼)
-from launch_ros.substitutions import FindPackageShare  # Find package share dir (패키지 share 경로 찾기)
+from launch_ros.parameter_descriptions import (  # Parameter file / value wrapper (파라미터 파일 / 파라미터 값 래퍼)
+    ParameterFile,
+    ParameterValue,
+)
+from launch_ros.substitutions import (
+    FindPackageShare,
+)  # Find package share dir (패키지 share 경로 찾기)
 
 
 def launch_setup(context, *args, **kwargs):
@@ -19,11 +32,19 @@ def launch_setup(context, *args, **kwargs):
     # - These values are typically provided by bringup.launch.py
     #   (이 값들은 일반적으로 bringup.launch.py에서 제공됨)
     # =========================================================
-    robot_ip = LaunchConfiguration("robot_ip")  # Robot/URSIM IP address (로봇/URSIM IP 주소)
+    robot_ip = LaunchConfiguration(
+        "robot_ip"
+    )  # Robot/URSIM IP address (로봇/URSIM IP 주소)
     ur_type = LaunchConfiguration("ur_type")  # UR robot model type (UR 로봇 모델 타입)
-    use_fake_hardware = LaunchConfiguration("use_fake_hardware")  # Fake HW flag: "true"/"false" (가상 HW 플래그)
-    kinematics_params = LaunchConfiguration("kinematics_params")  # Kinematics calibration file path (기구학 보정 파일 경로)
-    headless_mode = LaunchConfiguration("headless_mode")  # Headless mode flag (헤드리스 모드 플래그)
+    use_fake_hardware = LaunchConfiguration(
+        "use_fake_hardware"
+    )  # Fake HW flag: "true"/"false" (가상 HW 플래그)
+    kinematics_params = LaunchConfiguration(
+        "kinematics_params"
+    )  # Kinematics calibration file path (기구학 보정 파일 경로)
+    headless_mode = LaunchConfiguration(
+        "headless_mode"
+    )  # Headless mode flag (헤드리스 모드 플래그)
 
     # =========================================================
     # 2. Construct File Paths (파일 경로 구성)
@@ -44,21 +65,33 @@ def launch_setup(context, *args, **kwargs):
     # - Used by ur_ros2_control_node for robot communication
     #   (로봇 통신을 위해 ur_ros2_control_node에서 사용)
     # -----------------------------------------------------
-    script_filename = PathJoinSubstitution([
-        FindPackageShare("ur_client_library"),  # UR client library package (UR 클라이언트 라이브러리 패키지)
-        "resources",  # Resources directory (리소스 디렉토리)
-        "external_control.urscript",  # External control script (외부 제어 스크립트)
-    ])
-    input_recipe_filename = PathJoinSubstitution([
-        FindPackageShare("ur_robot_driver"),  # UR robot driver package (UR 로봇 드라이버 패키지)
-        "resources",  # Resources directory (리소스 디렉토리)
-        "rtde_input_recipe.txt",  # RTDE input recipe (RTDE 입력 레시피)
-    ])
-    output_recipe_filename = PathJoinSubstitution([
-        FindPackageShare("ur_robot_driver"),  # UR robot driver package (UR 로봇 드라이버 패키지)
-        "resources",  # Resources directory (리소스 디렉토리)
-        "rtde_output_recipe.txt",  # RTDE output recipe (RTDE 출력 레시피)
-    ])
+    script_filename = PathJoinSubstitution(
+        [
+            FindPackageShare(
+                "ur_client_library"
+            ),  # UR client library package (UR 클라이언트 라이브러리 패키지)
+            "resources",  # Resources directory (리소스 디렉토리)
+            "external_control.urscript",  # External control script (외부 제어 스크립트)
+        ]
+    )
+    input_recipe_filename = PathJoinSubstitution(
+        [
+            FindPackageShare(
+                "ur_robot_driver"
+            ),  # UR robot driver package (UR 로봇 드라이버 패키지)
+            "resources",  # Resources directory (리소스 디렉토리)
+            "rtde_input_recipe.txt",  # RTDE input recipe (RTDE 입력 레시피)
+        ]
+    )
+    output_recipe_filename = PathJoinSubstitution(
+        [
+            FindPackageShare(
+                "ur_robot_driver"
+            ),  # UR robot driver package (UR 로봇 드라이버 패키지)
+            "resources",  # Resources directory (리소스 디렉토리)
+            "rtde_output_recipe.txt",  # RTDE output recipe (RTDE 출력 레시피)
+        ]
+    )
 
     # -----------------------------------------------------
     # 2.2 Controller Configuration File (컨트롤러 설정 파일)
@@ -68,11 +101,15 @@ def launch_setup(context, *args, **kwargs):
     # - Defines available controllers and their parameters
     #   (사용 가능한 컨트롤러와 파라미터 정의)
     # -----------------------------------------------------
-    controllers_config_file = PathJoinSubstitution([
-        FindPackageShare("ur_robot_driver"),  # Official UR driver package (공식 UR 드라이버 패키지)
-        "config",  # Config directory (설정 디렉토리)
-        "ur_controllers.yaml",  # Controller configuration file (컨트롤러 설정 파일)
-    ])
+    controllers_config_file = PathJoinSubstitution(
+        [
+            FindPackageShare(
+                "ur_robot_driver"
+            ),  # Official UR driver package (공식 UR 드라이버 패키지)
+            "config",  # Config directory (설정 디렉토리)
+            "ur_controllers.yaml",  # Controller configuration file (컨트롤러 설정 파일)
+        ]
+    )
 
     # -----------------------------------------------------
     # 2.3 Update Rate Configuration File (업데이트 속도 설정 파일)
@@ -86,11 +123,16 @@ def launch_setup(context, *args, **kwargs):
     # - Uses official UR driver's update rate config
     #   (공식 UR 드라이버의 업데이트 속도 설정 사용)
     # -----------------------------------------------------
-    update_rate_config_file = PathJoinSubstitution([
-        FindPackageShare("ur_robot_driver"),  # Official UR driver package (공식 UR 드라이버 패키지)
-        "config",  # Config directory (설정 디렉토리)
-        ur_type.perform(context) + "_update_rate.yaml",  # Update rate file for robot type (로봇 타입별 업데이트 속도 파일)
-    ])
+    update_rate_config_file = PathJoinSubstitution(
+        [
+            FindPackageShare(
+                "ur_robot_driver"
+            ),  # Official UR driver package (공식 UR 드라이버 패키지)
+            "config",  # Config directory (설정 디렉토리)
+            ur_type.perform(context)
+            + "_update_rate.yaml",  # Update rate file for robot type (로봇 타입별 업데이트 속도 파일)
+        ]
+    )
 
     # =========================================================
     # 3. Generate Robot Description (로봇 설명 생성)
@@ -104,33 +146,41 @@ def launch_setup(context, *args, **kwargs):
     # - Result is a complete URDF XML string
     #   (결과는 완전한 URDF XML 문자열)
     # =========================================================
-    robot_description_content = Command([
-        PathJoinSubstitution([FindExecutable(name="xacro")]),  # Find xacro executable (xacro 실행 파일 찾기)
-        " ",  # Space separator (공백 구분자)
-        PathJoinSubstitution([
-            FindPackageShare("ur_description_wrapper"),  # Description wrapper package (설명 래퍼 패키지)
-            "urdf",  # URDF directory (URDF 디렉토리)
-            "ur.urdf.xacro",  # Main URDF xacro file (메인 URDF xacro 파일)
-        ]),
-        " robot_ip:=",
-        robot_ip,  # Pass robot IP to xacro (xacro에 로봇 IP 전달)
-        " name:=",
-        "ur",  # Use "ur" to match official ur_moveit_config (공식 ur_moveit_config와 일치하도록 "ur" 사용)
-        " ur_type:=",
-        ur_type,  # Pass robot type (로봇 타입 전달)
-        " use_fake_hardware:=",
-        use_fake_hardware,  # Enable fake hardware if true (가상 하드웨어 사용)
-        " kinematics_params:=",
-        kinematics_params,  # Optional kinematics calibration (기구학 보정 파일)
-        " headless_mode:=",
-        headless_mode,  # Headless mode (헤드리스 모드)
-        " script_filename:=",
-        script_filename,  # External control script (외부 제어 스크립트)
-        " input_recipe_filename:=",
-        input_recipe_filename,  # RTDE input recipe (RTDE 입력 레시피)
-        " output_recipe_filename:=",
-        output_recipe_filename,  # RTDE output recipe (RTDE 출력 레시피)
-    ])
+    robot_description_content = Command(
+        [
+            PathJoinSubstitution(
+                [FindExecutable(name="xacro")]
+            ),  # Find xacro executable (xacro 실행 파일 찾기)
+            " ",  # Space separator (공백 구분자)
+            PathJoinSubstitution(
+                [
+                    FindPackageShare(
+                        "ur_description_wrapper"
+                    ),  # Description wrapper package (설명 래퍼 패키지)
+                    "urdf",  # URDF directory (URDF 디렉토리)
+                    "ur.urdf.xacro",  # Main URDF xacro file (메인 URDF xacro 파일)
+                ]
+            ),
+            " robot_ip:=",
+            robot_ip,  # Pass robot IP to xacro (xacro에 로봇 IP 전달)
+            " name:=",
+            "ur",  # Use "ur" to match official ur_moveit_config (공식 ur_moveit_config와 일치하도록 "ur" 사용)
+            " ur_type:=",
+            ur_type,  # Pass robot type (로봇 타입 전달)
+            " use_fake_hardware:=",
+            use_fake_hardware,  # Enable fake hardware if true (가상 하드웨어 사용)
+            " kinematics_params:=",
+            kinematics_params,  # Optional kinematics calibration (기구학 보정 파일)
+            " headless_mode:=",
+            headless_mode,  # Headless mode (헤드리스 모드)
+            " script_filename:=",
+            script_filename,  # External control script (외부 제어 스크립트)
+            " input_recipe_filename:=",
+            input_recipe_filename,  # RTDE input recipe (RTDE 입력 레시피)
+            " output_recipe_filename:=",
+            output_recipe_filename,  # RTDE output recipe (RTDE 출력 레시피)
+        ]
+    )
 
     # -----------------------------------------------------
     # 3.1 Robot Description Parameter Dictionary (로봇 설명 파라미터 딕셔너리)
@@ -143,11 +193,10 @@ def launch_setup(context, *args, **kwargs):
     #   (ur_control_node와 robot_state_publisher_node에서 사용)
     # -----------------------------------------------------
     robot_description = {
-        "robot_description":
-            ParameterValue(
-                value=robot_description_content,  # Xacro command result (Xacro 명령 결과)
-                value_type=str,  # Value type: string (값 타입: 문자열)
-            )
+        "robot_description": ParameterValue(
+            value=robot_description_content,  # Xacro command result (Xacro 명령 결과)
+            value_type=str,  # Value type: string (값 타입: 문자열)
+        )
     }
 
     # =========================================================
@@ -176,8 +225,9 @@ def launch_setup(context, *args, **kwargs):
         parameters=[  # Parameters passed to the node (노드에 전달할 파라미터)
             robot_description,  # Robot model description (URDF) (로봇 모델 설명, URDF)
             update_rate_config_file,  # Update rate configuration (업데이트 속도 설정)
-            ParameterFile(controllers_config_file,
-                          allow_substs=True),  # Controller configuration file with substitution support (대체 지원이 있는 컨트롤러 설정 파일)
+            ParameterFile(
+                controllers_config_file, allow_substs=True
+            ),  # Controller configuration file with substitution support (대체 지원이 있는 컨트롤러 설정 파일)
             # ParameterFile allows variable substitution (e.g., $(var tf_prefix)) in YAML
             # (ParameterFile은 YAML에서 변수 대체를 허용, 예: $(var tf_prefix))
             # allow_substs=True enables substitution of launch variables
@@ -204,7 +254,9 @@ def launch_setup(context, *args, **kwargs):
         package="robot_state_publisher",  # TF publisher package (TF 발행 패키지)
         executable="robot_state_publisher",  # Executable name (실행 파일)
         name="robot_state_publisher",  # Node name (노드 이름)
-        parameters=[robot_description],  # Uses same robot_description (동일 robot_description 사용)
+        parameters=[
+            robot_description
+        ],  # Uses same robot_description (동일 robot_description 사용)
         output="screen",  # Print logs to screen (로그를 화면에 출력)
     )
 
@@ -271,7 +323,8 @@ def generate_launch_description():
             # (UR 로봇 또는 URSIM IP 주소.
             #  로봇 하드웨어 또는 URSIM 시뮬레이터 연결에 필요.
             #  예: 192.168.1.25 또는 URSIM의 경우 127.0.0.1)
-        ))
+        )
+    )
 
     # -----------------------------------------------------
     # Optional Arguments with Defaults (기본값이 있는 선택 인자)
@@ -301,7 +354,8 @@ def generate_launch_description():
                 "ur10",
                 "ur10e",
             ],
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -313,7 +367,8 @@ def generate_launch_description():
             # (하드웨어 모드 선택.
             #  true = 가상 하드웨어 사용 (로봇 없이 개발/테스트).
             #  false = 실제 하드웨어 또는 URSIM 사용 (로봇 연결 필요))
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -327,7 +382,8 @@ def generate_launch_description():
             #  제공되면 기본 기구학 파라미터를 덮어씀.
             #  로봇별 보정에 사용됨.
             #  빈 문자열은 description 패키지의 기본 기구학 사용을 의미)
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -339,7 +395,8 @@ def generate_launch_description():
             # (로봇 제어를 위한 헤드리스 모드 활성화.
             #  true = GUI 없음, 운영 환경에 적합.
             #  false = GUI 허용, 개발 환경에 적합)
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -353,7 +410,8 @@ def generate_launch_description():
             #  다중 로봇 설정에 유용.
             #  변경 시 컨트롤러 설정의 조인트 이름도 업데이트해야 함.
             #  빈 문자열은 접두사 없음 의미, 기본값)
-        ))
+        )
+    )
 
     # =========================================================
     # LaunchDescription Assembly (런치 구성 조립)
@@ -369,4 +427,6 @@ def generate_launch_description():
     # - launch_setup function receives context with resolved arguments
     #   (launch_setup 함수는 해석된 인자가 있는 context를 받음)
     # =========================================================
-    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+    return LaunchDescription(
+        declared_arguments + [OpaqueFunction(function=launch_setup)]
+    )

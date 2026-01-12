@@ -1,5 +1,8 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction  # Declare args / opaque function (런치 인자 선언 / 불투명 함수)
+from launch.actions import (  # Declare args / opaque function (런치 인자 선언 / 불투명 함수)
+    DeclareLaunchArgument,
+    OpaqueFunction,
+)
 from launch.substitutions import LaunchConfiguration  # Runtime args (런치 설정값)
 from launch_ros.actions import Node  # ROS2 node action (ROS2 노드 실행)
 
@@ -15,11 +18,18 @@ def launch_setup(context, *args, **kwargs):
     # - Values come from CLI args or DeclareLaunchArgument defaults
     #   (값은 CLI 인자 또는 DeclareLaunchArgument 기본값에서 옴)
     # =========================================================
-    use_fake_hardware = LaunchConfiguration("use_fake_hardware")  # Fake HW flag: "true"/"false" (가상 HW 플래그)
-    controller_spawner_timeout = LaunchConfiguration("controller_spawner_timeout")  # Spawner timeout (스폰너 타임아웃)
-    initial_joint_controller = LaunchConfiguration("initial_joint_controller")  # Initial joint controller (초기 조인트 컨트롤러)
+    use_fake_hardware = LaunchConfiguration(
+        "use_fake_hardware"
+    )  # Fake HW flag: "true"/"false" (가상 HW 플래그)
+    controller_spawner_timeout = LaunchConfiguration(
+        "controller_spawner_timeout"
+    )  # Spawner timeout (스폰너 타임아웃)
+    initial_joint_controller = LaunchConfiguration(
+        "initial_joint_controller"
+    )  # Initial joint controller (초기 조인트 컨트롤러)
     activate_joint_controller = LaunchConfiguration(
-        "activate_joint_controller")  # Activate joint controller flag (조인트 컨트롤러 활성화 플래그)
+        "activate_joint_controller"
+    )  # Activate joint controller flag (조인트 컨트롤러 활성화 플래그)
 
     # =========================================================
     # 2. Controller Spawner Factory Function (컨트롤러 스폰너 팩토리 함수)
@@ -77,7 +87,8 @@ def launch_setup(context, *args, **kwargs):
                 "/controller_manager",  # Controller manager namespace (컨트롤러 매니저 네임스페이스)
                 "--controller-manager-timeout",  # Timeout option (타임아웃 옵션)
                 controller_spawner_timeout,  # Timeout value (타임아웃 값)
-            ] + inactive_flags  # Add --inactive flag if active=False (active=False이면 --inactive 플래그 추가)
+            ]
+            + inactive_flags  # Add --inactive flag if active=False (active=False이면 --inactive 플래그 추가)
             + controllers,  # Controller names to spawn (스폰할 컨트롤러 이름들)
         )
 
@@ -227,7 +238,9 @@ def launch_setup(context, *args, **kwargs):
     #   (두 스폰너 모두 병렬 실행)
     # =========================================================
     controller_spawners = [
-        controller_spawner(controllers_active),  # Active controllers spawner (활성 컨트롤러 스폰너)
+        controller_spawner(
+            controllers_active
+        ),  # Active controllers spawner (활성 컨트롤러 스폰너)
         # controller_spawner(controllers_inactive, active=False),  # Inactive controllers spawner (비활성 컨트롤러 스폰너)
     ]
 
@@ -290,7 +303,8 @@ def generate_launch_description():
             # (하드웨어 모드 선택.
             #  true = 가상 하드웨어 사용 (tcp_pose_broadcaster 제거).
             #  false = 실제 하드웨어 사용 (tcp_pose_broadcaster 포함))
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -302,7 +316,8 @@ def generate_launch_description():
             # (컨트롤러 스폰너 작업의 타임아웃.
             #  controller_manager가 준비될 때까지 대기 시간.
             #  컨트롤러 스폰 실패 시 증가)
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -318,7 +333,8 @@ def generate_launch_description():
                 "freedrive_mode_controller",
                 "passthrough_trajectory_controller",
             ],
-        ))
+        )
+    )
 
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -330,7 +346,8 @@ def generate_launch_description():
             # (시작 시 초기 조인트 컨트롤러를 활성화할지 여부.
             #  true = 선택된 컨트롤러를 즉시 활성화.
             #  false = 모든 궤적 컨트롤러를 비활성 상태로 유지)
-        ))
+        )
+    )
 
     # =========================================================
     # LaunchDescription Assembly (런치 구성 조립)
@@ -346,4 +363,6 @@ def generate_launch_description():
     # - launch_setup function receives context with resolved arguments
     #   (launch_setup 함수는 해석된 인자가 있는 context를 받음)
     # =========================================================
-    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+    return LaunchDescription(
+        declared_arguments + [OpaqueFunction(function=launch_setup)]
+    )

@@ -1,12 +1,19 @@
 from launch import LaunchDescription
 from launch.actions import (  # Declare args / include sub-launch / opaque function (런치 인자 선언 / 하위 런치 포함 / 불투명 함수)
-    DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction)
-from launch.launch_description_sources import \
-    PythonLaunchDescriptionSource  # Source type for .launch.py (파이썬 런치 소스)
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
+from launch.launch_description_sources import (
+    PythonLaunchDescriptionSource,
+)  # Source type for .launch.py (파이썬 런치 소스)
 from launch.substitutions import (  # Runtime args + safe path join (런치 설정값 + 안전한 경로 결합)
-    LaunchConfiguration, PathJoinSubstitution)
-from launch_ros.substitutions import \
-    FindPackageShare  # Find package share dir (패키지 share 경로 찾기)
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
+from launch_ros.substitutions import (
+    FindPackageShare,
+)  # Find package share dir (패키지 share 경로 찾기)
 
 
 def launch_setup(context, *args, **kwargs):
@@ -20,7 +27,9 @@ def launch_setup(context, *args, **kwargs):
     # - Values come from CLI args or DeclareLaunchArgument defaults
     #   (값은 CLI 인자 또는 DeclareLaunchArgument 기본값에서 옴)
     # =========================================================
-    robot_ip = LaunchConfiguration("robot_ip")  # Robot/URSIM IP address (로봇/URSIM IP 주소)
+    robot_ip = LaunchConfiguration(
+        "robot_ip"
+    )  # Robot/URSIM IP address (로봇/URSIM IP 주소)
 
     # =========================================================
     # 2. Include Sub-Launch File (하위 런치 파일 포함)
@@ -56,11 +65,16 @@ def launch_setup(context, *args, **kwargs):
     # -----------------------------------------------------
     dashboard_client_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            PathJoinSubstitution([
-                FindPackageShare("ur_robot_driver"),  # Official UR driver package (공식 UR 드라이버 패키지)
-                "launch",  # Launch directory (런치 디렉토리)
-                "ur_dashboard_client.launch.py",  # Target launch file (대상 런치 파일)
-            ])),
+            PathJoinSubstitution(
+                [
+                    FindPackageShare(
+                        "ur_robot_driver"
+                    ),  # Official UR driver package (공식 UR 드라이버 패키지)
+                    "launch",  # Launch directory (런치 디렉토리)
+                    "ur_dashboard_client.launch.py",  # Target launch file (대상 런치 파일)
+                ]
+            )
+        ),
         launch_arguments={  # Arguments passed to ur_dashboard_client.launch.py (ur_dashboard_client.launch.py에 전달할 인자)
             "robot_ip": robot_ip,  # Robot IP for dashboard connection (대시보드 연결을 위한 로봇 IP)
         }.items(),
@@ -117,7 +131,8 @@ def generate_launch_description():
             # (UR 로봇 또는 URSIM IP 주소.
             #  로봇 대시보드 서비스 연결에 필요.
             #  예: 192.168.1.25 또는 URSIM의 경우 127.0.0.1)
-        ))
+        )
+    )
 
     # =========================================================
     # LaunchDescription Assembly (런치 구성 조립)
@@ -133,4 +148,6 @@ def generate_launch_description():
     # - launch_setup function receives context with resolved arguments
     #   (launch_setup 함수는 해석된 인자가 있는 context를 받음)
     # =========================================================
-    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+    return LaunchDescription(
+        declared_arguments + [OpaqueFunction(function=launch_setup)]
+    )
