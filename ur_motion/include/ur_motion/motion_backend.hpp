@@ -18,6 +18,8 @@ class MoveJBackend {
 
     virtual MotionResult moveJ(
         const std::vector<double>& joints, double vel) = 0;
+
+    virtual void moveCancel() = 0;
 };
 
 // move_l_backend.hpp
@@ -27,6 +29,8 @@ class MoveLBackend {
 
     virtual MotionResult moveL(
         const std::array<double, 16>& T, double vel) = 0;
+
+    virtual void moveCancel() = 0;
 };
 
 }  // namespace ur_motion

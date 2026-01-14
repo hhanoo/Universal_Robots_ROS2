@@ -52,6 +52,8 @@ class URRobotController:
         # Action clients
         self.movej_client = ActionClient(self.node, MoveJ, "/move_j")
         self.movel_client = ActionClient(self.node, MoveL, "/move_l")
+        self.current_movej_goal = None  # current MoveJ goal handle (현재 MoveJ)
+        self.current_movel_goal = None  # current MoveL goal handle (현재 MoveL)
 
         # Service clients
         self.speed_slider_client = self.node.create_client(
@@ -165,131 +167,218 @@ class URRobotController:
     # ========================================================
     # Motion Control
     # ========================================================
-    def move_j(self, joints, velocity=0.5, wait=True):
+    def move_j(self, joints, velocity=0.5, callback=None):
         """
         Execute MoveJ motion
 
         Args:
             joints (list): 6 joint positions in radians
             velocity (float): Velocity scaling [0.01 ~ 1.0]
-            wait (bool): If True, blocks until complete; if False, returns immediately
+            callback (function): callback(success: bool, message: str)
 
         Returns:
-            bool: True if command sent successfully (wait=False) or completed successfully (wait=True)
+            bool: True if goal request was sent successfully
         """
+
+        # Check joint length (joint 개수 체크)
         if len(joints) != 6:
             self.node.get_logger().error(
                 f"MoveJ requires 6 joint values, got {len(joints)}"
             )
+            if callback:
+                callback(False, "Invalid joint length")
             return False
 
-        if not self.movej_client.wait_for_server(timeout_sec=5.0):
+        # Check action server availability (액션 서버 확인)
+        if not self.movej_client.wait_for_server(timeout_sec=2.0):
             self.node.get_logger().error("MoveJ action server not available")
+            if callback:
+                callback(False, "Action server not available")
             return False
 
+        # Create goal (목표 생성)
         goal = MoveJ.Goal()
         goal.joints = joints
         goal.velocity = velocity
 
         self.node.get_logger().info(f"Sending MoveJ goal: velocity={velocity:.2f}")
 
+        # Send goal asynchronously (비동기 전송)
         send_goal_future = self.movej_client.send_goal_async(goal)
 
-        if not wait:
-            return True
+        # ========================== Goal response callback ==========================
+        def _goal_response_cb(future):
+            try:
+                goal_handle = future.result()
+            except Exception as e:
+                self.node.get_logger().error(f"MoveJ goal response failed: {e}")
+                if callback:
+                    callback(False, "Goal response exception")
+                return
 
-        # Blocking mode - wait for completion
-        # Note: Caller should execute this in a separate thread if needed
-        rclpy.spin_until_future_complete(self.node, send_goal_future, timeout_sec=10.0)
+            if not goal_handle.accepted:
+                self.node.get_logger().error("MoveJ goal rejected")
+                if callback:
+                    callback(False, "Goal rejected")
+                return
 
-        if not send_goal_future.done():
-            self.node.get_logger().error("MoveJ goal response timeout")
-            return False
+            self.node.get_logger().info("MoveJ goal accepted")
 
-        goal_handle = send_goal_future.result()
-        if not goal_handle.accepted:
-            self.node.get_logger().error("MoveJ goal rejected")
-            return False
+            # Save goal handle (현재 MoveJ goal handle 저장)
+            self.current_movej_goal = goal_handle
 
-        self.node.get_logger().info("MoveJ goal accepted, waiting for result...")
-        result_future = goal_handle.get_result_async()
+            # Request result asynchronously (결과 비동기 요청)
+            result_future = goal_handle.get_result_async()
+            result_future.add_done_callback(_result_cb)
 
-        rclpy.spin_until_future_complete(self.node, result_future, timeout_sec=120.0)
+        # ========================== Result callback =============================
+        def _result_cb(future):
+            try:
+                result = future.result().result
+            except Exception as e:
+                self.node.get_logger().error(f"MoveJ result failed: {e}")
+                if callback:
+                    callback(False, "Result exception")
+                return
 
-        if not result_future.done():
-            self.node.get_logger().error("MoveJ result timeout")
-            return False
+            # Clear current MoveJ goal handle (현재 MoveJ goal handle 초기화)
+            self.current_movej_goal = None
 
-        result = result_future.result().result
-        if result.success:
-            self.node.get_logger().info(f"✅ MoveJ succeeded: {result.message}")
-            return True
-        else:
-            self.node.get_logger().error(f"❌ MoveJ failed: {result.message}")
-            return False
+            if result.success:
+                self.node.get_logger().info(f"✅ MoveJ succeeded: {result.message}")
+                if callback:
+                    callback(True, result.message)
+            else:
+                self.node.get_logger().error(f"❌ MoveJ failed: {result.message}")
+                if callback:
+                    callback(False, result.message)
 
-    def move_l(self, tmatrix, velocity=0.5, wait=True):
+        # Register callback (콜백 등록)
+        send_goal_future.add_done_callback(_goal_response_cb)
+
+        # Return immediately (즉시 반환)
+        return True
+
+    def move_l(self, tmatrix, velocity=0.5, callback=None):
         """
         Execute MoveL motion
 
         Args:
             tmatrix (list): 4x4 transformation matrix (16 elements, row-major)
             velocity (float): Velocity scaling [0.01 ~ 1.0]
-            wait (bool): If True, blocks until complete; if False, returns immediately
+            callback (function): callback(success: bool, message: str)
 
         Returns:
-            bool: True if command sent successfully (wait=False) or completed successfully (wait=True)
+        bool: True if goal request was sent successfully
         """
+
+        # Check matrix length (행렬 길이 체크)
         if len(tmatrix) != 16:
             self.node.get_logger().error(
                 f"MoveL requires 16 elements, got {len(tmatrix)}"
             )
+            if callback:
+                callback(False, "Invalid matrix length")
             return False
 
+        # Check action server availability (액션 서버 확인)
         if not self.movel_client.wait_for_server(timeout_sec=5.0):
             self.node.get_logger().error("MoveL action server not available")
+            if callback:
+                callback(False, "Action server not available")
             return False
 
+        # Create goal (목표 생성)
         goal = MoveL.Goal()
         goal.target_tmatrix = tmatrix
         goal.velocity = velocity
 
         self.node.get_logger().info(f"Sending MoveL goal: velocity={velocity:.2f}")
 
+        # Send goal asynchronously (비동기 전송)
         send_goal_future = self.movel_client.send_goal_async(goal)
 
-        if not wait:
-            return True
+        # ========================== Goal response callback ==========================
+        def _goal_response_cb(future):
+            try:
+                goal_handle = future.result()
+            except Exception as e:
+                self.node.get_logger().error(f"MoveL goal response failed: {e}")
+                if callback:
+                    callback(False, "Goal response exception")
+                return
 
-        # Blocking mode - wait for completion
-        # Note: Caller should execute this in a separate thread if needed
-        rclpy.spin_until_future_complete(self.node, send_goal_future, timeout_sec=10.0)
+            if not goal_handle.accepted:
+                self.node.get_logger().error("MoveL goal rejected")
+                if callback:
+                    callback(False, "Goal rejected")
+                return
 
-        if not send_goal_future.done():
-            self.node.get_logger().error("MoveL goal response timeout")
-            return False
+            self.node.get_logger().info("MoveL goal accepted")
 
-        goal_handle = send_goal_future.result()
-        if not goal_handle.accepted:
-            self.node.get_logger().error("MoveL goal rejected")
-            return False
+            # Save goal handle (현재 MoveL goal handle 저장)
+            self.current_movel_goal = goal_handle
 
-        self.node.get_logger().info("MoveL goal accepted, waiting for result...")
-        result_future = goal_handle.get_result_async()
+            # Request result asynchronously (결과 비동기 요청)
+            result_future = goal_handle.get_result_async()
+            result_future.add_done_callback(_result_cb)
 
-        rclpy.spin_until_future_complete(self.node, result_future, timeout_sec=120.0)
+        # ========================== Result callback =============================
+        def _result_cb(future):
+            try:
+                result = future.result().result
+            except Exception as e:
+                self.node.get_logger().error(f"MoveL result failed: {e}")
+                if callback:
+                    callback(False, "Result exception")
+                return
 
-        if not result_future.done():
-            self.node.get_logger().error("MoveL result timeout")
-            return False
+            # Clear current MoveL goal handle (현재 MoveL goal handle 초기화)
+            self.current_movel_goal = None
 
-        result = result_future.result().result
-        if result.success:
-            self.node.get_logger().info(f"✅ MoveL succeeded: {result.message}")
-            return True
-        else:
-            self.node.get_logger().error(f"❌ MoveL failed: {result.message}")
-            return False
+            if result.success:
+                self.node.get_logger().info(f"✅ MoveL succeeded: {result.message}")
+                if callback:
+                    callback(True, result.message)
+            else:
+                self.node.get_logger().error(f"❌ MoveL failed: {result.message}")
+                if callback:
+                    callback(False, result.message)
+
+        # Register callback (콜백 등록)
+        send_goal_future.add_done_callback(_goal_response_cb)
+
+        # Return immediately (즉시 반환)
+        return True
+
+    def move_cancel(self):
+        """
+        Cancel current MoveL / MoveJ motion if exists
+
+        Returns:
+            bool: True if cancellation request was sent
+        """
+
+        cancelled = False
+
+        # Cancel MoveL if active (MoveL 취소)
+        if self.current_movel_goal:
+            self.node.get_logger().info("🛑 Cancelling current MoveL goal")
+            self.current_movel_goal.cancel_goal_async()
+            self.current_movel_goal = None
+            cancelled = True
+
+        # Cancel MoveJ if active (MoveJ 취소)
+        if self.current_movej_goal:
+            self.node.get_logger().info("🛑 Cancelling current MoveJ goal")
+            self.current_movej_goal.cancel_goal_async()
+            self.current_movej_goal = None
+            cancelled = True
+
+        if not cancelled:
+            self.node.get_logger().warn("❌ No active motion to cancel")
+
+        return cancelled
 
     # ========================================================
     # Speed Control

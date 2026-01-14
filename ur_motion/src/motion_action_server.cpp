@@ -18,6 +18,13 @@ namespace ur_motion {
 
 class MotionActionServer : public rclcpp::Node {
    public:
+    // Motion wait result enum
+    enum class MotionWaitResult {
+        COMPLETED,  // Motion completed successfully
+        CANCELED,   // Motion canceled by user
+        ABORTED     // Motion aborted due to error
+    };
+
     // Motion completion detection constants
     static constexpr double                    VELOCITY_THRESHOLD = 0.01;  // rad/s - threshold for considering robot stopped
     static constexpr double                    STABLE_DURATION    = 0.2;   // seconds - duration robot must be stable
@@ -92,6 +99,9 @@ class MotionActionServer : public rclcpp::Node {
     // MoveIt backend for both MoveJ and MoveL
     std::shared_ptr<MoveItBackend> motion_backend_;
 
+    // Flag to request cancel motion
+    std::atomic_bool cancel_requested_{false};
+
     // Action servers
     rclcpp_action::Server<MoveJ>::SharedPtr movej_server_;
     rclcpp_action::Server<MoveL>::SharedPtr movel_server_;
@@ -123,19 +133,29 @@ class MotionActionServer : public rclcpp::Node {
     }
 
     // Wait until robot actually stops
-    void waitUntilMotionDone() {
+    MotionWaitResult waitUntilMotionDone() {
         auto stable_start = now();
 
         while (rclcpp::ok()) {
+            // 1. cancel requested check (highest priority)
+            if (cancel_requested_.load()) {
+                RCLCPP_WARN(get_logger(), "Motion canceled while waiting");
+                return MotionWaitResult::CANCELED;
+            }
+            // 2. normal completion check
             if (isRobotStopped()) {
                 if ((now() - stable_start).seconds() > STABLE_DURATION) {
-                    return;
+                    return MotionWaitResult::COMPLETED;
                 }
             } else {
                 stable_start = now();
             }
             rclcpp::sleep_for(POLL_INTERVAL);
         }
+
+        // 3. node shutdown or system error
+        RCLCPP_ERROR(get_logger(), "Motion aborted (rclcpp shutdown)");
+        return MotionWaitResult::ABORTED;
     }
 
     // ================= MoveJ =================
@@ -149,6 +169,15 @@ class MotionActionServer : public rclcpp::Node {
     // Handle MoveJ cancel (Cancel is accepted but stop command is not yet sent)
     rclcpp_action::CancelResponse handleMoveJCancel(const std::shared_ptr<GoalHandleMoveJ>) {
         RCLCPP_INFO(get_logger(), "MoveJ cancel requested");
+
+        // Set cancel requested flag
+        cancel_requested_.store(true);
+
+        // Cancel motion if backend is initialized
+        if (motion_backend_) {
+            motion_backend_->moveCancel();
+        }
+
         return rclcpp_action::CancelResponse::ACCEPT;
     }
 
@@ -159,13 +188,17 @@ class MotionActionServer : public rclcpp::Node {
 
     // Execute MoveJ command
     void executeMoveJ(const std::shared_ptr<GoalHandleMoveJ> goal_handle) {
-        const auto goal = goal_handle->get_goal();
+        // Reset cancel requested flag
+        cancel_requested_.store(false);
 
         // Check if backend is initialized
         if (!motion_backend_) {
             abortGoal(goal_handle, "MoveItBackend not initialized");
             return;
         }
+
+        // Get goal
+        const auto goal = goal_handle->get_goal();
 
         // Send MoveJ command using MoveItBackend
         auto motion_result = motion_backend_->moveJ(goal->joints, goal->velocity);
@@ -176,11 +209,24 @@ class MotionActionServer : public rclcpp::Node {
             return;
         }
 
-        // Wait until robot actually stops
-        waitUntilMotionDone();
+        // Wait for motion to complete or be canceled or aborted
+        switch (waitUntilMotionDone()) {
+            case MotionWaitResult::COMPLETED:
+                succeedGoal(goal_handle, "MoveJ done");
+                break;
 
-        // Succeed goal
-        succeedGoal(goal_handle, "MoveJ done");
+            case MotionWaitResult::CANCELED: {
+                auto result     = std::make_shared<MoveJ::Result>();
+                result->success = false;
+                result->message = "MoveJ canceled";
+                goal_handle->canceled(result);
+                break;
+            }
+
+            case MotionWaitResult::ABORTED:
+                abortGoal(goal_handle, "MoveJ aborted");
+                break;
+        }
     }
 
     // ================= MoveL =================
@@ -192,6 +238,15 @@ class MotionActionServer : public rclcpp::Node {
     // Handle MoveL cancel (Cancel is accepted but stop command is not yet sent)
     rclcpp_action::CancelResponse handleMoveLCancel(const std::shared_ptr<GoalHandleMoveL>) {
         RCLCPP_INFO(get_logger(), "MoveL cancel requested");
+
+        // Set cancel requested flag
+        cancel_requested_.store(true);
+
+        // Cancel motion if backend is initialized
+        if (motion_backend_) {
+            motion_backend_->moveCancel();
+        }
+
         return rclcpp_action::CancelResponse::ACCEPT;
     }
 
@@ -202,13 +257,17 @@ class MotionActionServer : public rclcpp::Node {
 
     // Execute MoveL command
     void executeMoveL(const std::shared_ptr<GoalHandleMoveL> goal_handle) {
-        const auto goal = goal_handle->get_goal();
+        // Reset cancel requested flag
+        cancel_requested_.store(false);
 
         // Check if backend is initialized
         if (!motion_backend_) {
             abortGoal(goal_handle, "MoveItBackend not initialized");
             return;
         }
+
+        // Get goal
+        const auto goal = goal_handle->get_goal();
 
         // Send MoveL command using MoveItBackend
         auto motion_result = motion_backend_->moveL(goal->target_tmatrix, goal->velocity);
@@ -219,11 +278,24 @@ class MotionActionServer : public rclcpp::Node {
             return;
         }
 
-        // Wait until robot actually stops
-        waitUntilMotionDone();
+        // Wait for motion to complete or be canceled or aborted
+        switch (waitUntilMotionDone()) {
+            case MotionWaitResult::COMPLETED:
+                succeedGoal(goal_handle, "MoveL done");
+                break;
 
-        // Succeed goal
-        succeedGoal(goal_handle, "MoveL done");
+            case MotionWaitResult::CANCELED: {
+                auto result     = std::make_shared<MoveL::Result>();
+                result->success = false;
+                result->message = "MoveL canceled";
+                goal_handle->canceled(result);
+                break;
+            }
+
+            case MotionWaitResult::ABORTED:
+                abortGoal(goal_handle, "MoveL aborted");
+                break;
+        }
     }
 
     // Helper: Abort MoveJ goal with error message

@@ -327,4 +327,15 @@ geometry_msgs::msg::Pose MoveItBackend::transformPoseToMoveItFrame(const geometr
     }
 }
 
+void MoveItBackend::moveCancel() {
+    if (!move_group_) {
+        RCLCPP_WARN(node_->get_logger(), "MoveItBackend::moveCancel() called but move_group_ is null");
+        return;
+    }
+
+    RCLCPP_WARN(node_->get_logger(), "MoveItBackend::moveCancel() - stopping MoveGroup execution");
+
+    move_group_->stop();
+}
+
 }  // namespace ur_motion

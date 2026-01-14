@@ -26,6 +26,9 @@ class MoveItBackend : public MoveJBackend, public MoveLBackend {
     // Cartesian linear move using MoveIt (MoveIt 기반 직선 이동)
     MotionResult moveL(const std::array<double, 16>& T, double vel) override;
 
+    // Cancel motion
+    void moveCancel() override;
+
    private:
     rclcpp::Node::SharedPtr node_;
 
