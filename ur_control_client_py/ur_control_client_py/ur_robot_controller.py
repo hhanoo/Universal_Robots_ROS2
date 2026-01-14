@@ -172,10 +172,10 @@ class URRobotController:
         Args:
             joints (list): 6 joint positions in radians
             velocity (float): Velocity scaling [0.01 ~ 1.0]
-            wait (bool): Wait for motion to complete
+            wait (bool): If True, blocks until complete; if False, returns immediately
 
         Returns:
-            bool: True if succeeded
+            bool: True if command sent successfully (wait=False) or completed successfully (wait=True)
         """
         if len(joints) != 6:
             self.node.get_logger().error(
@@ -198,20 +198,29 @@ class URRobotController:
         if not wait:
             return True
 
-        rclpy.spin_until_future_complete(self.node, send_goal_future)
-        goal_handle = send_goal_future.result()
+        # Blocking mode - wait for completion
+        # Note: Caller should execute this in a separate thread if needed
+        rclpy.spin_until_future_complete(self.node, send_goal_future, timeout_sec=10.0)
 
+        if not send_goal_future.done():
+            self.node.get_logger().error("MoveJ goal response timeout")
+            return False
+
+        goal_handle = send_goal_future.result()
         if not goal_handle.accepted:
             self.node.get_logger().error("MoveJ goal rejected")
             return False
 
         self.node.get_logger().info("MoveJ goal accepted, waiting for result...")
-
         result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self.node, result_future)
+
+        rclpy.spin_until_future_complete(self.node, result_future, timeout_sec=120.0)
+
+        if not result_future.done():
+            self.node.get_logger().error("MoveJ result timeout")
+            return False
 
         result = result_future.result().result
-
         if result.success:
             self.node.get_logger().info(f"✅ MoveJ succeeded: {result.message}")
             return True
@@ -226,10 +235,10 @@ class URRobotController:
         Args:
             tmatrix (list): 4x4 transformation matrix (16 elements, row-major)
             velocity (float): Velocity scaling [0.01 ~ 1.0]
-            wait (bool): Wait for motion to complete
+            wait (bool): If True, blocks until complete; if False, returns immediately
 
         Returns:
-            bool: True if succeeded
+            bool: True if command sent successfully (wait=False) or completed successfully (wait=True)
         """
         if len(tmatrix) != 16:
             self.node.get_logger().error(
@@ -252,20 +261,29 @@ class URRobotController:
         if not wait:
             return True
 
-        rclpy.spin_until_future_complete(self.node, send_goal_future)
-        goal_handle = send_goal_future.result()
+        # Blocking mode - wait for completion
+        # Note: Caller should execute this in a separate thread if needed
+        rclpy.spin_until_future_complete(self.node, send_goal_future, timeout_sec=10.0)
 
+        if not send_goal_future.done():
+            self.node.get_logger().error("MoveL goal response timeout")
+            return False
+
+        goal_handle = send_goal_future.result()
         if not goal_handle.accepted:
             self.node.get_logger().error("MoveL goal rejected")
             return False
 
         self.node.get_logger().info("MoveL goal accepted, waiting for result...")
-
         result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(self.node, result_future)
+
+        rclpy.spin_until_future_complete(self.node, result_future, timeout_sec=120.0)
+
+        if not result_future.done():
+            self.node.get_logger().error("MoveL result timeout")
+            return False
 
         result = result_future.result().result
-
         if result.success:
             self.node.get_logger().info(f"✅ MoveL succeeded: {result.message}")
             return True
