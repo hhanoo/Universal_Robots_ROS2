@@ -11,6 +11,8 @@ Features:
 - TCP pose tracking via TF
 """
 
+import asyncio
+
 import numpy as np
 import rclpy
 from rclpy.action import ActionClient
@@ -19,9 +21,10 @@ from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64
 from tf2_ros import Buffer, TransformListener
-from ur_motion.action import MoveJ, MoveL
 from ur_msgs.msg import IOStates
 from ur_msgs.srv import SetIO, SetSpeedSliderFraction
+
+from ur_motion.action import MoveJ, MoveL
 
 
 class URRobotController:
@@ -29,12 +32,20 @@ class URRobotController:
     UR Robot Controller (non-Node class).
 
     This class provides a high-level interface for controlling UR robots.
-    It requires a ROS2 node instance to be passed in the constructor.
+    All motion commands use async/await for clean sequential programming.
 
     Example:
         node = Node('my_node')
         robot = URRobotController(node)
-        robot.move_j([0, -1.57, 1.57, -1.57, -1.57, 0], 0.5)
+
+        # Sequential motion control
+        # 1. MoveJ to initial position
+        success, msg = await robot.move_j([0, -1.57, 1.57, -1.57, -1.57, 0], 0.5)
+        await robot.wait(1.0)
+
+        # 2. MoveL to target position
+        success, msg = await robot.move_l(tmatrix, 0.3)
+        await robot.wait(1.0)
     """
 
     # ========================================================
@@ -77,29 +88,90 @@ class URRobotController:
             IOStates, "/io_and_status_controller/io_states", self.io_states_callback, 10
         )
 
+        # TF
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self.node)
+
         # State variables
-        self.latest_joint_state = None
         self.connected = False
+        self.latest_joint_state = None
         self.speed_slider = 1.0  # User-set speed slider value
         self.speed_scaling = 1.0  # Actual speed scaling from robot (speed_slider * target_speed_fraction)
+
         self.digital_in_states = [False] * 18
         self.digital_out_states = [False] * 18
 
-        # TF setup for TCP pose tracking
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self.node)
         self.tcp_pose_matrix = np.eye(4)  # 4x4 T-matrix (base -> tool0_controller)
         self.tcp_pose_available = False
+
+        # Connection flags
+        self.joint_state_ready = False
+        self.speed_ready = False
+        self.io_ready = False
+        self.tcp_ready = False
 
         self.node.get_logger().info("UR Robot Controller initialized")
 
     # ========================================================
-    # State Monitoring (Public Query Methods)
+    # Connection / Ready (Public)
     # ========================================================
     def is_connected(self):
-        """Check if robot is connected"""
+        """
+        Connected means: joint_states received at least once (joint_states 1회 이상)
+
+        Returns:
+            bool: True if connected
+        """
         return self.connected
 
+    def is_robot_ready(self, require_io=False):
+        """
+        Robot ready means: essential state streams are ready.
+
+        Args:
+            require_io (bool): If True, IO states must also be received.
+        """
+        # Check essential state streams
+        base_ready = self.joint_state_ready and self.speed_ready and self.tcp_ready
+
+        # Check optional IO states if required
+        if require_io:
+            return base_ready and self.io_ready
+        return base_ready
+
+    async def wait_robot_ready(self, timeout=5.0, require_io=False):
+        """
+        Wait until robot is fully ready (상태 수신 완료 대기).
+
+        Conditions:
+        - joint_states received
+        - speed_scaling received
+        - tcp TF available
+        - (optional) IO states received
+
+        Args:
+            timeout (float): timeout seconds
+            require_io (bool): require IO states also
+
+        Returns:
+            bool: True if ready
+        """
+        # Get start time
+        start = asyncio.get_event_loop().time()
+
+        # Wait until timeout or robot is ready
+        while asyncio.get_event_loop().time() - start < timeout:
+            if self.is_robot_ready(require_io=require_io):
+                self.node.get_logger().info("🤖 Robot fully ready")
+                return True
+            await asyncio.sleep(0.05)
+
+        self.node.get_logger().error("❌ Robot not ready (timeout)")
+        return False
+
+    # ========================================================
+    # State Monitoring (Public Query Methods)
+    # ========================================================
     def get_joint_positions(self):
         """
         Get latest joint positions
@@ -167,43 +239,42 @@ class URRobotController:
     # ========================================================
     # Motion Control
     # ========================================================
-    def move_j(self, joints, velocity=0.5, callback=None):
+    async def move_j(self, joints, velocity=0.5, timeout=30.0):
         """
         Execute MoveJ motion
 
         Args:
             joints (list): 6 joint positions in radians
             velocity (float): Velocity scaling [0.01 ~ 1.0]
-            callback (function): callback(success: bool, message: str)
+            timeout (float): Maximum wait time in seconds
 
         Returns:
-            bool: True if goal request was sent successfully
+            tuple: (success: bool, message: str)
         """
-
-        # Check joint length (joint 개수 체크)
+        # Check joint length
         if len(joints) != 6:
             self.node.get_logger().error(
                 f"MoveJ requires 6 joint values, got {len(joints)}"
             )
-            if callback:
-                callback(False, "Invalid joint length")
-            return False
+            return False, "Invalid joint length"
 
-        # Check action server availability (액션 서버 확인)
+        # Check action server availability
         if not self.movej_client.wait_for_server(timeout_sec=2.0):
             self.node.get_logger().error("MoveJ action server not available")
-            if callback:
-                callback(False, "Action server not available")
-            return False
+            return False, "Action server not available"
 
-        # Create goal (목표 생성)
+        # Create goal
         goal = MoveJ.Goal()
         goal.joints = joints
         goal.velocity = velocity
 
         self.node.get_logger().info(f"Sending MoveJ goal: velocity={velocity:.2f}")
 
-        # Send goal asynchronously (비동기 전송)
+        # Create async future
+        loop = asyncio.get_event_loop()
+        result_future = loop.create_future()
+
+        # Send goal asynchronously
         send_goal_future = self.movej_client.send_goal_async(goal)
 
         # ========================== Goal response callback ==========================
@@ -212,24 +283,24 @@ class URRobotController:
                 goal_handle = future.result()
             except Exception as e:
                 self.node.get_logger().error(f"MoveJ goal response failed: {e}")
-                if callback:
-                    callback(False, "Goal response exception")
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, "Goal response exception")
+                )
                 return
 
             if not goal_handle.accepted:
                 self.node.get_logger().error("MoveJ goal rejected")
-                if callback:
-                    callback(False, "Goal rejected")
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, "Goal rejected")
+                )
                 return
 
             self.node.get_logger().info("MoveJ goal accepted")
-
-            # Save goal handle (현재 MoveJ goal handle 저장)
             self.current_movej_goal = goal_handle
 
-            # Request result asynchronously (결과 비동기 요청)
-            result_future = goal_handle.get_result_async()
-            result_future.add_done_callback(_result_cb)
+            # Request result asynchronously
+            get_result_future = goal_handle.get_result_async()
+            get_result_future.add_done_callback(_result_cb)
 
         # ========================== Result callback =============================
         def _result_cb(future):
@@ -237,65 +308,71 @@ class URRobotController:
                 result = future.result().result
             except Exception as e:
                 self.node.get_logger().error(f"MoveJ result failed: {e}")
-                if callback:
-                    callback(False, "Result exception")
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, "Result exception")
+                )
                 return
 
-            # Clear current MoveJ goal handle (현재 MoveJ goal handle 초기화)
+            # Clear current MoveJ goal handle
             self.current_movej_goal = None
 
             if result.success:
                 self.node.get_logger().info(f"✅ MoveJ succeeded: {result.message}")
-                if callback:
-                    callback(True, result.message)
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (True, result.message)
+                )
             else:
                 self.node.get_logger().error(f"❌ MoveJ failed: {result.message}")
-                if callback:
-                    callback(False, result.message)
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, result.message)
+                )
 
-        # Register callback (콜백 등록)
+        # Register callback
         send_goal_future.add_done_callback(_goal_response_cb)
 
-        # Return immediately (즉시 반환)
-        return True
+        # Wait for completion
+        try:
+            result = await asyncio.wait_for(result_future, timeout=timeout)
+            return result
+        except asyncio.TimeoutError:
+            return False, f"❌ MoveJ failed: timeout after {timeout}s"
 
-    def move_l(self, tmatrix, velocity=0.5, callback=None):
+    async def move_l(self, tmatrix, velocity=0.5, timeout=30.0):
         """
         Execute MoveL motion
 
         Args:
             tmatrix (list): 4x4 transformation matrix (16 elements, row-major)
             velocity (float): Velocity scaling [0.01 ~ 1.0]
-            callback (function): callback(success: bool, message: str)
+            timeout (float): Maximum wait time in seconds
 
         Returns:
-        bool: True if goal request was sent successfully
+            tuple: (success: bool, message: str)
         """
-
-        # Check matrix length (행렬 길이 체크)
+        # Check matrix length
         if len(tmatrix) != 16:
             self.node.get_logger().error(
                 f"MoveL requires 16 elements, got {len(tmatrix)}"
             )
-            if callback:
-                callback(False, "Invalid matrix length")
-            return False
+            return False, "Invalid matrix length"
 
-        # Check action server availability (액션 서버 확인)
+        # Check action server availability
         if not self.movel_client.wait_for_server(timeout_sec=5.0):
             self.node.get_logger().error("MoveL action server not available")
-            if callback:
-                callback(False, "Action server not available")
-            return False
+            return False, "Action server not available"
 
-        # Create goal (목표 생성)
+        # Create goal
         goal = MoveL.Goal()
         goal.target_tmatrix = tmatrix
         goal.velocity = velocity
 
         self.node.get_logger().info(f"Sending MoveL goal: velocity={velocity:.2f}")
 
-        # Send goal asynchronously (비동기 전송)
+        # Create async future
+        loop = asyncio.get_event_loop()
+        result_future = loop.create_future()
+
+        # Send goal asynchronously
         send_goal_future = self.movel_client.send_goal_async(goal)
 
         # ========================== Goal response callback ==========================
@@ -304,24 +381,26 @@ class URRobotController:
                 goal_handle = future.result()
             except Exception as e:
                 self.node.get_logger().error(f"MoveL goal response failed: {e}")
-                if callback:
-                    callback(False, "Goal response exception")
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, "Goal response exception")
+                )
                 return
 
             if not goal_handle.accepted:
                 self.node.get_logger().error("MoveL goal rejected")
-                if callback:
-                    callback(False, "Goal rejected")
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, "Goal rejected")
+                )
                 return
 
             self.node.get_logger().info("MoveL goal accepted")
 
-            # Save goal handle (현재 MoveL goal handle 저장)
+            # Save goal handle
             self.current_movel_goal = goal_handle
 
-            # Request result asynchronously (결과 비동기 요청)
-            result_future = goal_handle.get_result_async()
-            result_future.add_done_callback(_result_cb)
+            # Request result asynchronously
+            get_result_future = goal_handle.get_result_async()
+            get_result_future.add_done_callback(_result_cb)
 
         # ========================== Result callback =============================
         def _result_cb(future):
@@ -329,27 +408,34 @@ class URRobotController:
                 result = future.result().result
             except Exception as e:
                 self.node.get_logger().error(f"MoveL result failed: {e}")
-                if callback:
-                    callback(False, "Result exception")
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, "Result exception")
+                )
                 return
 
-            # Clear current MoveL goal handle (현재 MoveL goal handle 초기화)
+            # Clear current MoveL goal handle
             self.current_movel_goal = None
 
             if result.success:
                 self.node.get_logger().info(f"✅ MoveL succeeded: {result.message}")
-                if callback:
-                    callback(True, result.message)
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (True, result.message)
+                )
             else:
                 self.node.get_logger().error(f"❌ MoveL failed: {result.message}")
-                if callback:
-                    callback(False, result.message)
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, result.message)
+                )
 
-        # Register callback (콜백 등록)
+        # Register callback
         send_goal_future.add_done_callback(_goal_response_cb)
 
-        # Return immediately (즉시 반환)
-        return True
+        # Wait for completion
+        try:
+            result = await asyncio.wait_for(result_future, timeout=timeout)
+            return result
+        except asyncio.TimeoutError:
+            return False, f"❌ MoveL failed: timeout after {timeout}s"
 
     def move_cancel(self):
         """
@@ -358,121 +444,175 @@ class URRobotController:
         Returns:
             bool: True if cancellation request was sent
         """
-
         cancelled = False
 
-        # Cancel MoveL if active (MoveL 취소)
+        # Cancel MoveL if active
         if self.current_movel_goal:
             self.node.get_logger().info("🛑 Cancelling current MoveL goal")
             self.current_movel_goal.cancel_goal_async()
             self.current_movel_goal = None
             cancelled = True
 
-        # Cancel MoveJ if active (MoveJ 취소)
+        # Cancel MoveJ if active
         if self.current_movej_goal:
             self.node.get_logger().info("🛑 Cancelling current MoveJ goal")
             self.current_movej_goal.cancel_goal_async()
             self.current_movej_goal = None
             cancelled = True
 
+        # Check if no active motion to cancel
         if not cancelled:
             self.node.get_logger().warn("❌ No active motion to cancel")
 
         return cancelled
 
     # ========================================================
+    # Utility Functions
+    # ========================================================
+    async def wait(self, duration_sec):
+        """
+        Wait for specified duration
+
+        Usage: Used for delays between motions (모션 사이 지연 대기)
+
+        Args:
+            duration_sec (float): Wait duration in seconds
+        """
+        await asyncio.sleep(duration_sec)
+
+    # ========================================================
     # Speed Control
     # ========================================================
-    def set_speed_slider(self, slider_value, wait=True):
+    async def set_speed_slider(self, slider_value, timeout=1.0):
         """
         Set speed slider value
 
         Args:
             slider_value (float): Speed slider value [0.01 ~ 1.0]
-            wait (bool): Wait for response (default: True)
-                        Set to False to call asynchronously during motion
+            timeout (float): Maximum wait time in seconds
 
         Returns:
-            bool: True if succeeded (when wait=True)
-            Future: Service call future (when wait=False)
+            tuple: (success: bool, message: str)
         """
+        # Check speed slider value range
         if not 0.01 <= slider_value <= 1.0:
-            self.node.get_logger().warn(
+            self.node.get_logger().error(
                 f"Speed slider must be in [0.01, 1.0], got {slider_value}"
             )
-            return False
+            return False, "Invalid speed slider value"
 
+        # Check service availability
         if not self.speed_slider_client.wait_for_service(timeout_sec=1.0):
-            self.node.get_logger().warn("Speed slider service not available")
-            return False
+            self.node.get_logger().error("Speed slider service not available")
+            return False, "Speed slider service not available"
 
+        # Create request
         request = SetSpeedSliderFraction.Request()
         request.speed_slider_fraction = slider_value
 
-        future = self.speed_slider_client.call_async(request)
+        # Create async future
+        loop = asyncio.get_event_loop()
+        result_future = loop.create_future()
 
-        if not wait:
-            # Async mode: return future without waiting
-            # Update internal state immediately (optimistic update)
-            self.speed_slider = slider_value
-            self.node.get_logger().info(
-                f"🔄 Speed slider change requested: {slider_value * 100:.1f}% (async)"
-            )
-            return future
+        # Send request asynchronously
+        send_request_future = self.speed_slider_client.call_async(request)
 
-        # Sync mode: wait for response
-        rclpy.spin_until_future_complete(self.node, future)
+        # ========================== Response callback =============================
+        def _response_cb(future):
+            try:
+                response = future.result()
+            except Exception as e:
+                self.node.get_logger().error(f"Speed slider service failed: {e}")
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, "Service exception")
+                )
+                return
 
-        response = future.result()
-        if response.success:
-            self.speed_slider = slider_value  # Update internal state
-            self.node.get_logger().info(
-                f"✅ Speed slider set to {slider_value * 100:.1f}%"
-            )
-        else:
-            self.node.get_logger().warn("❌ Failed to set speed slider")
+            if response.success:
+                self.speed_slider = slider_value
+                self.node.get_logger().info(
+                    f"✅ Speed slider set to {slider_value * 100:.1f}%"
+                )
+                loop.call_soon_threadsafe(result_future.set_result, (True, "Success"))
+            else:
+                self.node.get_logger().error("❌ Failed to set speed slider")
+                loop.call_soon_threadsafe(result_future.set_result, (False, "Failed"))
 
-        return response.success
+        # Register callback
+        send_request_future.add_done_callback(_response_cb)
+
+        try:
+            result = await asyncio.wait_for(result_future, timeout=timeout)
+            return result
+        except asyncio.TimeoutError:
+            return False, f"❌ Speed slider failed: timeout after {timeout}s"
 
     # ========================================================
     # I/O Control
     # ========================================================
-    def set_digital_out(self, pin, value):
+    async def set_digital_out(self, pin, value, timeout=1.0):
         """
         Set digital output pin
 
         Args:
             pin (int): Pin number [0-17]
             value (bool): Output value (True=HIGH, False=LOW)
+            timeout (float): Maximum wait time in seconds
 
         Returns:
-            bool: True if succeeded
+            tuple: (success: bool, message: str)
         """
         if not 0 <= pin <= 17:
-            self.node.get_logger().warn(f"Invalid pin number: {pin} (must be 0-17)")
-            return False
+            self.node.get_logger().error(f"Invalid pin number: {pin} (must be 0-17)")
+            return False, "Invalid pin number"
 
         if not self.set_io_client.wait_for_service(timeout_sec=1.0):
-            self.node.get_logger().warn("I/O service not available")
-            return False
+            self.node.get_logger().error("I/O service not available")
+            return False, "I/O service not available"
 
+        # Create request
         request = SetIO.Request()
-        request.fun = 1  # Set digital output
+        request.fun = 1
         request.pin = pin
         request.state = 1.0 if value else 0.0
 
-        future = self.set_io_client.call_async(request)
-        rclpy.spin_until_future_complete(self.node, future)
+        # Create async future
+        loop = asyncio.get_event_loop()
+        result_future = loop.create_future()
 
-        response = future.result()
-        if response.success:
-            self.node.get_logger().info(
-                f'✅ Digital output pin {pin} set to {"HIGH" if value else "LOW"}'
-            )
-        else:
-            self.node.get_logger().warn(f"❌ Failed to set digital output pin {pin}")
+        # Send request asynchronously
+        send_request_future = self.set_io_client.call_async(request)
 
-        return response.success
+        # ========================== Response callback =============================
+        def _response_cb(future):
+            try:
+                response = future.result()
+            except Exception as e:
+                self.node.get_logger().error(f"I/O service failed: {e}")
+                loop.call_soon_threadsafe(
+                    result_future.set_result, (False, "Service exception")
+                )
+                return
+
+            if response.success:
+                self.node.get_logger().info(
+                    f'✅ Digital output pin {pin} set to {"HIGH" if value else "LOW"}'
+                )
+                loop.call_soon_threadsafe(result_future.set_result, (True, "Success"))
+            else:
+                self.node.get_logger().error(
+                    f"❌ Failed to set digital output pin {pin}"
+                )
+                loop.call_soon_threadsafe(result_future.set_result, (False, "Failed"))
+
+        # Register callback
+        send_request_future.add_done_callback(_response_cb)
+
+        try:
+            result = await asyncio.wait_for(result_future, timeout=timeout)
+            return result
+        except asyncio.TimeoutError:
+            return False, f"❌ Digital output failed: timeout after {timeout}s"
 
     # ========================================================
     # Internal Callbacks
@@ -481,13 +621,15 @@ class URRobotController:
         """Callback for joint state updates"""
         self.latest_joint_state = msg
 
-        was_connected = self.connected
-        self.connected = True
-
-        if not was_connected:
+        # Log first time only
+        if not self.joint_state_ready:
             self.node.get_logger().info(
                 f"✅ Robot connected! Received joint states (joint count: {len(msg.name)})"
             )
+
+        # Set joint state ready to True and connected to True
+        self.joint_state_ready = True
+        self.connected = True
 
         # Update TCP pose from TF
         self._update_tcp_pose_from_tf()
@@ -497,11 +639,13 @@ class URRobotController:
         self.speed_scaling = msg.data / 100.0
 
         # Log first time only
-        if not hasattr(self, "_speed_logged"):
-            self._speed_logged = True
+        if not self.speed_ready:
             self.node.get_logger().info(
                 f"⚡ Speed scaling updates received: {msg.data:.1f}%"
             )
+
+        # Set speed ready to True
+        self.speed_ready = True
 
     def io_states_callback(self, msg):
         """Callback for I/O states updates"""
@@ -514,17 +658,19 @@ class URRobotController:
             self.digital_out_states[i] = msg.digital_out_states[i].state > 0.5
 
         # Log first time only
-        if not hasattr(self, "_io_logged"):
-            self._io_logged = True
+        if not self.io_ready:
             self.node.get_logger().info(
                 f"🔌 I/O states received (DI: {len(msg.digital_in_states)}, DO: {len(msg.digital_out_states)})"
             )
+
+        # Set io ready to True
+        self.io_ready = True
 
     # ========================================================
     # Internal Helper Methods
     # ========================================================
     def _update_tcp_pose_from_tf(self):
-        """Update TCP pose from TF transform (internal method called by joint_state_callback)"""
+        """Update TCP pose from TF transform"""
         try:
             transform = self.tf_buffer.lookup_transform(
                 "base",  # Target frame (robot base)
@@ -541,14 +687,19 @@ class URRobotController:
                 self.node.get_logger().info(
                     "📍 TCP pose tracking active (TF synchronized)"
                 )
-                self.tcp_pose_available = True
+
+            # Set tcp pose available to True and tcp ready to True
+            self.tcp_pose_available = True
+            self.tcp_ready = True
 
         except Exception as e:
             if self.tcp_pose_available:
                 self.node.get_logger().warn(
                     f"Lost TF transform (base -> tool0_controller): {e}"
                 )
-                self.tcp_pose_available = False
+            # Set tcp pose available to False and tcp ready to False
+            self.tcp_pose_available = False
+            self.tcp_ready = False
 
     def _transform_to_matrix(self, transform):
         """

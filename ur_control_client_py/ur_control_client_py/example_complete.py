@@ -13,12 +13,12 @@ Usage:
     ros2 run ur_control_client_py example_complete
 """
 
+import asyncio
 import math
-import time
 
-import numpy as np
 import rclpy
 from rclpy.node import Node
+
 from ur_control_client_py import URRobotController
 
 
@@ -64,8 +64,15 @@ def create_tmatrix(x, y, z, rx, ry, rz):
     return T
 
 
-def main(args=None):
-    rclpy.init(args=args)
+async def spin_node(node):
+    """Spin ROS node in async loop"""
+    while rclpy.ok():
+        rclpy.spin_once(node, timeout_sec=0.1)
+        await asyncio.sleep(0.01)
+
+
+async def main_async():
+    rclpy.init()
 
     # Create ROS2 node
     node = Node("ur_control_example_complete")
@@ -73,42 +80,50 @@ def main(args=None):
     # Create robot controller
     robot = URRobotController(node)
 
-    # Wait for robot connection
-    node.get_logger().info("Waiting for robot connection...")
-    while rclpy.ok() and not robot.is_connected():
-        rclpy.spin_once(node, timeout_sec=0.1)
+    spin_task = asyncio.create_task(spin_node(node))
 
-    if not robot.is_connected():
-        node.get_logger().error("Failed to connect to robot")
+    # Wait for robot ready (IO included)
+    node.get_logger().info("Waiting for robot connection and to be ready...")
+    ready = await robot.wait_robot_ready(timeout=5.0, require_io=True)
+    if not ready:
+        node.get_logger().error(
+            "❌ Robot not ready (timeout waiting for joint/speed/tcp/io)"
+        )
+        spin_task.cancel()
         node.destroy_node()
         rclpy.shutdown()
         return
 
-    node.get_logger().info("✅ Robot connected!")
+    node.get_logger().info("✅ Robot connected and ready!")
     node.get_logger().info("")
     node.get_logger().info("=" * 60)
     node.get_logger().info("  Complete UR Control Example (Python)")
     node.get_logger().info("=" * 60)
     node.get_logger().info("")
 
-    time.sleep(1)
+    await asyncio.sleep(0.5)
 
     # ========== 1. Speed Control ==========
     node.get_logger().info("=" * 40)
     node.get_logger().info("1. Speed Control")
     node.get_logger().info("=" * 40)
     node.get_logger().info("Setting speed to 30% for safe operation...")
-    robot.set_speed_slider(0.3)
-    time.sleep(1)
+
+    ok, msg = await robot.set_speed_slider(0.3)
+    if not ok:
+        node.get_logger().warn(f"⚠️ Failed to set speed slider: {msg}")
+
+    await asyncio.sleep(1.0)
 
     # ========== 2. MoveJ to Home ==========
     node.get_logger().info("")
     node.get_logger().info("=" * 40)
     node.get_logger().info("2. MoveJ to Home")
     node.get_logger().info("=" * 40)
-    home = [0.0, -1.57, 1.57, -1.57, -1.57, 0.0]
 
-    if robot.move_j(home, 0.3, True):
+    home = [0.0, -1.57, 1.57, -1.57, -1.57, 0.0]
+    ok, msg = await robot.move_j(home, velocity=0.3)
+    if ok:
         node.get_logger().info("✅ Reached HOME position")
 
         # Get current joint positions
@@ -118,9 +133,9 @@ def main(args=None):
             for i, j in enumerate(current_joints):
                 node.get_logger().info(f"  Joint[{i}]: {j:.4f} rad")
     else:
-        node.get_logger().error("❌ Failed to reach HOME")
+        node.get_logger().error(f"❌ Failed to reach HOME: {msg}")
 
-    time.sleep(2)
+    await asyncio.sleep(2.0)
 
     # ========== 3. Digital Output Control ==========
     node.get_logger().info("")
@@ -128,22 +143,27 @@ def main(args=None):
     node.get_logger().info("3. Digital Output Control")
     node.get_logger().info("=" * 40)
     node.get_logger().info("Turning ON DO[0] (Standard output)...")
-    robot.set_digital_out(0, True)
-    time.sleep(1)
+
+    ok, msg = await robot.set_digital_out(0, True)
+    if not ok:
+        node.get_logger().warn(f"⚠️ Failed to set DO[0]: {msg}")
+
+    await asyncio.sleep(1.0)
 
     # ========== 4. MoveJ to Pre-Pick Position ==========
     node.get_logger().info("")
     node.get_logger().info("=" * 40)
     node.get_logger().info("4. MoveJ to Pre-Pick")
     node.get_logger().info("=" * 40)
-    pre_pick = [0.5, -1.2, 1.0, -1.5, -1.57, 0.5]
 
-    if robot.move_j(pre_pick, 0.3, True):
+    pre_pick = [0.5, -1.2, 1.0, -1.5, -1.57, 0.5]
+    ok, msg = await robot.move_j(pre_pick, velocity=0.3)
+    if ok:
         node.get_logger().info("✅ Reached Pre-Pick position")
     else:
-        node.get_logger().error("❌ Failed to reach Pre-Pick")
+        node.get_logger().error(f"❌ Failed to reach Pre-Pick: {msg}")
 
-    time.sleep(1)
+    await asyncio.sleep(1.0)
 
     # ========== 5. MoveL Down (Simulated Pick) ==========
     node.get_logger().info("")
@@ -162,14 +182,13 @@ def main(args=None):
     )
 
     node.get_logger().info("Moving down to pick position...")
-    if robot.move_l(tmatrix_down, 0.2, True):
+    ok, msg = await robot.move_l(tmatrix_down, velocity=0.2)
+    if ok:
         node.get_logger().info("✅ Reached pick position")
     else:
-        node.get_logger().warn(
-            "⚠️ MoveL might have failed (check if position is reachable)"
-        )
+        node.get_logger().warn(f"⚠️ MoveL failed: {msg}")
 
-    time.sleep(1)
+    await asyncio.sleep(1.0)
 
     # ========== 6. Gripper Control (Simulated with DO) ==========
     node.get_logger().info("")
@@ -177,8 +196,12 @@ def main(args=None):
     node.get_logger().info("6. Gripper Control (DO[1])")
     node.get_logger().info("=" * 40)
     node.get_logger().info("Closing gripper (DO[1] = HIGH)...")
-    robot.set_digital_out(1, True)
-    time.sleep(1)
+
+    ok, msg = await robot.set_digital_out(1, True)
+    if not ok:
+        node.get_logger().warn(f"⚠️ Failed to set DO[1]: {msg}")
+
+    await asyncio.sleep(1.0)
 
     # ========== 7. MoveL Up ==========
     node.get_logger().info("")
@@ -187,39 +210,50 @@ def main(args=None):
     node.get_logger().info("=" * 40)
 
     tmatrix_up = create_tmatrix(
-        -0.4, -0.2, 0.4, math.pi, 0.0, 0.0  # Position (10cm higher)
+        -0.4,
+        -0.2,
+        0.4,
+        math.pi,
+        0.0,
+        0.0,
     )
 
     node.get_logger().info("Moving up with object...")
-    if robot.move_l(tmatrix_up, 0.2, True):
+    ok, msg = await robot.move_l(tmatrix_up, velocity=0.2)
+    if ok:
         node.get_logger().info("✅ Moved up successfully")
     else:
-        node.get_logger().warn("⚠️ MoveL might have failed")
+        node.get_logger().warn(f"⚠️ MoveL failed: {msg}")
 
-    time.sleep(1)
+    await asyncio.sleep(1.0)
 
     # ========== 8. MoveJ to Place Position ==========
     node.get_logger().info("")
     node.get_logger().info("=" * 40)
     node.get_logger().info("8. MoveJ to Place Position")
     node.get_logger().info("=" * 40)
-    place = [-0.5, -1.2, 1.0, -1.5, -1.57, -0.5]
 
-    if robot.move_j(place, 0.3, True):
+    place = [-0.5, -1.2, 1.0, -1.5, -1.57, -0.5]
+    ok, msg = await robot.move_j(place, velocity=0.3)
+    if ok:
         node.get_logger().info("✅ Reached Place position")
     else:
-        node.get_logger().error("❌ Failed to reach Place position")
+        node.get_logger().error(f"❌ Failed to reach Place position: {msg}")
 
-    time.sleep(1)
+    await asyncio.sleep(1.0)
 
     # ========== 9. Release Object ==========
     node.get_logger().info("")
     node.get_logger().info("=" * 40)
     node.get_logger().info("9. Release Object")
     node.get_logger().info("=" * 40)
+
     node.get_logger().info("Opening gripper (DO[1] = LOW)...")
-    robot.set_digital_out(1, False)
-    time.sleep(1)
+    ok, msg = await robot.set_digital_out(1, False)
+    if not ok:
+        node.get_logger().warn(f"⚠️ Failed to clear DO[1]: {msg}")
+
+    await asyncio.sleep(1.0)
 
     # ========== 10. Return to Home ==========
     node.get_logger().info("")
@@ -227,25 +261,27 @@ def main(args=None):
     node.get_logger().info("10. Return to Home")
     node.get_logger().info("=" * 40)
 
-    if robot.move_j(home, 0.3, True):
+    ok, msg = await robot.move_j(home, velocity=0.3)
+    if ok:
         node.get_logger().info("✅ Returned to HOME")
     else:
-        node.get_logger().error("❌ Failed to return to HOME")
+        node.get_logger().error(f"❌ Failed to return to HOME: {msg}")
 
     # ========== 11. Cleanup ==========
     node.get_logger().info("")
     node.get_logger().info("=" * 40)
     node.get_logger().info("11. Cleanup")
     node.get_logger().info("=" * 40)
+
     node.get_logger().info("Turning OFF all outputs...")
-    robot.set_digital_out(0, False)
-    robot.set_digital_out(1, False)
+    await robot.set_digital_out(0, False)
+    await robot.set_digital_out(1, False)
 
     # ========== 12. Reset Speed ==========
     node.get_logger().info("Resetting speed to 100%...")
-    robot.set_speed_slider(1.0)
+    await robot.set_speed_slider(1.0)
 
-    time.sleep(1)
+    await asyncio.sleep(0.5)
 
     node.get_logger().info("")
     node.get_logger().info("=" * 60)
@@ -259,8 +295,13 @@ def main(args=None):
     node.get_logger().info("  ✓ Digital I/O control")
     node.get_logger().info("  ✓ State monitoring")
 
+    spin_task.cancel()
     node.destroy_node()
     rclpy.shutdown()
+
+
+def main():
+    asyncio.run(main_async())
 
 
 if __name__ == "__main__":
