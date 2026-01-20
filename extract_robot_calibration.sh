@@ -11,7 +11,7 @@ WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # User options
 # ===============================
 ROBOT_IP="127.0.0.1"
-TARGET_FILENAME="$WORKSPACE_ROOT/KETI_Universal_Robots_ROS2/ur_description_wrapper/config/calibration_kinematics.yaml"
+TARGET_FILENAME="$WORKSPACE_ROOT/Universal_Robots_ROS2/ur_description_wrapper/config/calibration_kinematics.yaml"
 
 # ===============================
 # ROS2 env
