@@ -220,13 +220,19 @@ MotionResult MoveItBackend::moveL(const std::array<double, 16>& T, double vel) {
     // - Computes inverse kinematics (IK) for each waypoint
     // - Returns fraction (0.0-1.0) indicating how much of the path was successfully planned
     // (현재 위치에서 목표 위치까지 직선상의 waypoint 생성, 각 waypoint에서 IK 계산, 성공률 반환)
+    move_group_->setStartStateToCurrentState();  // Ensure start state is current
+
     moveit_msgs::msg::RobotTrajectory trajectory;
 
-    double fraction = move_group_->computeCartesianPath(
-        {target_pose},  // waypoints (목표 위치만 포함)
-        0.001,          // eef_step = 1mm (직선 분해 간격: waypoint 간 최대 거리)
-        0.0,            // jump_threshold = 0 (관절 점프 제한: 0 = 제한 없음)
-        trajectory);
+    const double eef_step       = 0.001;
+    const double jump_threshold = 2.0;
+
+    double fraction = 0.0;
+    fraction        = move_group_->computeCartesianPath(
+               {target_pose},   // waypoints (목표 위치만 포함)
+               eef_step,        // eef_step = 1mm (직선 분해 간격: waypoint 간 최대 거리)
+               jump_threshold,  // jump_threshold = 0 (관절 점프 제한: 0 = 제한 없음)
+               trajectory);
 
     RCLCPP_INFO(node_->get_logger(), "Cartesian path planning fraction: %.3f (required: >= 0.999)", fraction);
 
