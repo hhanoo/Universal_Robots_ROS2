@@ -9,7 +9,7 @@ import asyncio
 
 import rclpy
 from rclpy.node import Node
-from ur_control_client_py import URRobotClient
+from ur_robot_client_py import URRobotClient
 
 
 async def spin_node(node):

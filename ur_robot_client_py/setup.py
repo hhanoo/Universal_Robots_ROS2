@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = "ur_control_client_py"
+package_name = "ur_robot_client_py"
 
 setup(
     # =========================================================
@@ -46,12 +46,12 @@ setup(
     # =========================================================
     entry_points={
         "console_scripts": [
-            # ros2 run ur_control_client_py example_movej
-            "example_movej = ur_control_client_py.example_movej:main",
-            # ros2 run ur_control_client_py example_io_speed
-            "example_io_speed = ur_control_client_py.example_io_speed:main",
-            # ros2 run ur_control_client_py example_complete
-            "example_complete = ur_control_client_py.example_complete:main",
+            # ros2 run ur_robot_client_py example_movej
+            "example_movej = ur_robot_client_py.example_movej:main",
+            # ros2 run ur_robot_client_py example_io_speed
+            "example_io_speed = ur_robot_client_py.example_io_speed:main",
+            # ros2 run ur_robot_client_py example_complete
+            "example_complete = ur_robot_client_py.example_complete:main",
         ],
     },
 )

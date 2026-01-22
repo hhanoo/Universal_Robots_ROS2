@@ -7,14 +7,14 @@ Demonstrates how to control:
 - Speed slider
 
 Usage:
-    ros2 run ur_control_client_py example_io_speed
+    ros2 run ur_robot_client_py example_io_speed
 """
 
 import asyncio
 
 import rclpy
 from rclpy.node import Node
-from ur_control_client_py import URRobotClient
+from ur_robot_client_py import URRobotClient
 
 
 async def spin_node(node):

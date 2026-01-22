@@ -10,7 +10,7 @@ Demonstrates all features:
 - State monitoring
 
 Usage:
-    ros2 run ur_control_client_py example_complete
+    ros2 run ur_robot_client_py example_complete
 """
 
 import asyncio
@@ -18,7 +18,7 @@ import math
 
 import rclpy
 from rclpy.node import Node
-from ur_control_client_py import URRobotClient
+from ur_robot_client_py import URRobotClient
 
 
 def create_tmatrix(x, y, z, rx, ry, rz):

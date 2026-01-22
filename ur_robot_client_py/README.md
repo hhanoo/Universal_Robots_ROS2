@@ -23,7 +23,7 @@ Python 기반 UR 로봇 제어 라이브러리 (`URRobotClient` 클래스)
 
 ## 📦 패키지 정보
 
-- **이름**: `ur_control_client_py`
+- **이름**: `ur_robot_client_py`
 - **버전**: `1.0.0`
 - **빌드 타입**: `ament_python`
 - **라이선스**: BSD-3-Clause
@@ -40,7 +40,7 @@ Python 기반 UR 로봇 제어 라이브러리 (`URRobotClient` 클래스)
 **실행:**
 
 ```bash
-ros2 run ur_control_client_py example_movej
+ros2 run ur_robot_client_py example_movej
 ```
 
 **기능:**
@@ -58,7 +58,7 @@ ros2 run ur_control_client_py example_movej
 **실행:**
 
 ```bash
-ros2 run ur_control_client_py example_io_speed
+ros2 run ur_robot_client_py example_io_speed
 ```
 
 **기능:**
@@ -77,7 +77,7 @@ ros2 run ur_control_client_py example_io_speed
 **실행:**
 
 ```bash
-ros2 run ur_control_client_py example_complete
+ros2 run ur_robot_client_py example_complete
 ```
 
 **기능:**
@@ -102,7 +102,7 @@ ros2 run ur_control_client_py example_complete
 
 ```bash
 cd /ros2_ws
-colcon build --packages-select ur_control_client_py
+colcon build --packages-select ur_robot_client_py
 source install/setup.bash
 ```
 
@@ -202,13 +202,13 @@ ros2 run ur_motion motion_action_server
 
 ```bash
 # MoveJ 예제
-ros2 run ur_control_client_py example_movej
+ros2 run ur_robot_client_py example_movej
 
 # I/O & Speed 예제
-ros2 run ur_control_client_py example_io_speed
+ros2 run ur_robot_client_py example_io_speed
 
 # 통합 예제 (Pick & Place)
-ros2 run ur_control_client_py example_complete
+ros2 run ur_robot_client_py example_complete
 ```
 
 ---
@@ -220,7 +220,7 @@ ros2 run ur_control_client_py example_complete
 ```python
 import rclpy
 from rclpy.node import Node
-from ur_control_client_py import URRobotClient
+from ur_robot_client_py import URRobotClient
 
 def main(args=None):
     rclpy.init(args=args)
@@ -361,7 +361,7 @@ node.get_logger().info(f'Speed - Slider: {slider:.2f}, Scaling: {scaling:.2f}')
 ### 1. 새 Python 파일 생성
 
 ```bash
-cd /ros2_ws/src/Universal_Robots_ROS2/ur_control_client_py/ur_control_client_py
+cd /ros2_ws/src/Universal_Robots_ROS2/ur_robot_client_py/ur_robot_client_py
 touch my_program.py
 chmod +x my_program.py
 ```
@@ -376,7 +376,7 @@ My Custom UR Control Program
 
 import rclpy
 from rclpy.node import Node
-from ur_control_client_py import URRobotClient
+from ur_robot_client_py import URRobotClient
 
 def main(args=None):
     rclpy.init(args=args)
@@ -421,10 +421,10 @@ if __name__ == '__main__':
 ```python
 entry_points={
     'console_scripts': [
-        'example_movej = ur_control_client_py.example_movej:main',
-        'example_io_speed = ur_control_client_py.example_io_speed:main',
-        'example_complete = ur_control_client_py.example_complete:main',
-        'my_program = ur_control_client_py.my_program:main',  # ← 추가
+        'example_movej = ur_robot_client_py.example_movej:main',
+        'example_io_speed = ur_robot_client_py.example_io_speed:main',
+        'example_complete = ur_robot_client_py.example_complete:main',
+        'my_program = ur_robot_client_py.my_program:main',  # ← 추가
     ],
 },
 ```
@@ -433,9 +433,9 @@ entry_points={
 
 ```bash
 cd /ros2_ws
-colcon build --packages-select ur_control_client_py
+colcon build --packages-select ur_robot_client_py
 source install/setup.bash
-ros2 run ur_control_client_py my_program
+ros2 run ur_robot_client_py my_program
 ```
 
 ---
