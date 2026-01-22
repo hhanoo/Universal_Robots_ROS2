@@ -8,11 +8,11 @@ Universal Robots ROS2 패키지 모음
 - `ur_moveit_config_wrapper` - MoveIt 설정 래퍼
 - `ur_motion` - Motion Action Server (MoveJ/MoveL)
 - `ur_control_client` - C++ 클라이언트 라이브러리
-- `ur_control_client_py` - **Python 로봇 제어 라이브러리** (`URRobotController` 클래스)
+- `ur_control_client_py` - **Python 로봇 제어 라이브러리** (`URRobotClient` 클래스)
 
 ## 💡 주요 특징
 
-### URRobotController (Python)
+### URRobotClient (Python)
 
 `ur_control_client_py` 패키지는 UR 로봇 제어를 위한 Python 라이브러리를 제공합니다.
 
@@ -26,14 +26,14 @@ Universal Robots ROS2 패키지 모음
 
 **구조:**
 
-`URRobotController`는 non-Node 클래스로, ROS2 Node 인스턴스를 받아 사용합니다.
+`URRobotClient`는 non-Node 클래스로, ROS2 Node 인스턴스를 받아 사용합니다.
 
 ```python
 from rclpy.node import Node
-from ur_control_client_py import URRobotController
+from ur_control_client_py import URRobotClient
 
 node = Node('my_controller')
-robot = URRobotController(node)  # Node를 주입
+robot = URRobotClient(node)  # Node를 주입
 robot.move_j([0, -1.57, 1.57, -1.57, -1.57, 0])
 ```
 

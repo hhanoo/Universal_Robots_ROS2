@@ -9,8 +9,7 @@ import asyncio
 
 import rclpy
 from rclpy.node import Node
-
-from ur_control_client_py import URRobotController
+from ur_control_client_py import URRobotClient
 
 
 async def spin_node(node):
@@ -27,7 +26,7 @@ async def main_async():
     node = Node("ur_control_example_movej")
 
     # Create robot controller
-    client = URRobotController(node)
+    client = URRobotClient(node)
 
     # Start ROS spinning task
     spin_task = asyncio.create_task(spin_node(node))

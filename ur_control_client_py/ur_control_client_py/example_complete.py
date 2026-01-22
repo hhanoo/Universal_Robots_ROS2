@@ -18,8 +18,7 @@ import math
 
 import rclpy
 from rclpy.node import Node
-
-from ur_control_client_py import URRobotController
+from ur_control_client_py import URRobotClient
 
 
 def create_tmatrix(x, y, z, rx, ry, rz):
@@ -78,7 +77,7 @@ async def main_async():
     node = Node("ur_control_example_complete")
 
     # Create robot controller
-    robot = URRobotController(node)
+    robot = URRobotClient(node)
 
     spin_task = asyncio.create_task(spin_node(node))
 

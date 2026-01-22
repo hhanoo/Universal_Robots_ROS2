@@ -21,13 +21,12 @@ from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64
 from tf2_ros import Buffer, TransformListener
+from ur_motion.action import MoveJ, MoveL
 from ur_msgs.msg import IOStates
 from ur_msgs.srv import SetIO, SetSpeedSliderFraction
 
-from ur_motion.action import MoveJ, MoveL
 
-
-class URRobotController:
+class URRobotClient:
     """
     UR Robot Controller (non-Node class).
 
@@ -36,7 +35,7 @@ class URRobotController:
 
     Example:
         node = Node('my_node')
-        robot = URRobotController(node)
+        robot = URRobotClient(node)
 
         # Sequential motion control
         # 1. MoveJ to initial position
@@ -130,6 +129,9 @@ class URRobotController:
 
         Args:
             require_io (bool): If True, IO states must also be received.
+
+        Returns:
+            bool: True if robot is ready
         """
         # Check essential state streams
         base_ready = self.joint_state_ready and self.speed_ready and self.tcp_ready

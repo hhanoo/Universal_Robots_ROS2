@@ -1,14 +1,14 @@
 # UR Control Client (Python)
 
-Python 기반 UR 로봇 제어 라이브러리 (`URRobotController` 클래스)
+Python 기반 UR 로봇 제어 라이브러리 (`URRobotClient` 클래스)
 
 ## 📋 개요
 
-이 패키지는 UR 로봇을 제어하기 위한 Python 라이브러리(`URRobotController`)와 예제 프로그램을 제공합니다.
+이 패키지는 UR 로봇을 제어하기 위한 Python 라이브러리(`URRobotClient`)와 예제 프로그램을 제공합니다.
 
 **주요 특징:**
 
-- 🎯 **Non-Node 클래스**: `URRobotController`는 ROS2 Node를 상속하지 않고, Node 인스턴스를 생성자에서 받아 사용
+- 🎯 **Non-Node 클래스**: `URRobotClient`는 ROS2 Node를 상속하지 않고, Node 인스턴스를 생성자에서 받아 사용
 - 🔄 **재사용 가능**: 여러 노드에서 동일한 컨트롤러 인스턴스를 공유 가능
 - 🚀 **간편한 API**: 복잡한 ROS2 Action/Service 호출을 간단한 메서드로 추상화
 
@@ -220,7 +220,7 @@ ros2 run ur_control_client_py example_complete
 ```python
 import rclpy
 from rclpy.node import Node
-from ur_control_client_py import URRobotController
+from ur_control_client_py import URRobotClient
 
 def main(args=None):
     rclpy.init(args=args)
@@ -229,7 +229,7 @@ def main(args=None):
     node = Node('my_robot_controller')
     
     # Create robot controller
-    robot = URRobotController(node)
+    robot = URRobotClient(node)
 
     # Wait for robot connection
     node.get_logger().info('Waiting for robot connection...')
@@ -376,7 +376,7 @@ My Custom UR Control Program
 
 import rclpy
 from rclpy.node import Node
-from ur_control_client_py import URRobotController
+from ur_control_client_py import URRobotClient
 
 def main(args=None):
     rclpy.init(args=args)
@@ -385,7 +385,7 @@ def main(args=None):
     node = Node('my_robot_controller')
     
     # Create robot controller
-    robot = URRobotController(node)
+    robot = URRobotClient(node)
 
     # Wait for robot connection
     node.get_logger().info('Waiting for robot connection...')
@@ -442,14 +442,14 @@ ros2 run ur_control_client_py my_program
 
 ## 📚 API 참고
 
-### URRobotController 클래스
+### URRobotClient 클래스
 
-`URRobotController`는 non-Node 클래스로, ROS2 Node 인스턴스를 생성자에서 받아 사용합니다.
+`URRobotClient`는 non-Node 클래스로, ROS2 Node 인스턴스를 생성자에서 받아 사용합니다.
 
 **구조:**
 
 ```python
-class URRobotController:
+class URRobotClient:
     def __init__(self, node: Node):
         """
         Initialize UR Robot Controller.
