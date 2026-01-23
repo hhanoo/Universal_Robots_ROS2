@@ -30,6 +30,10 @@
   <!-- * Common message types (기본 메시지 타입) -->
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+
+  <!-- * TF2 for TCP pose tracking -->
+  <depend>tf2_ros</depend>
 
   <!-- ========================================================= -->
   <!-- Test dependencies (테스트용 의존성) -->

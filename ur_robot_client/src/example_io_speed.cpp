@@ -20,19 +20,40 @@ int main(int argc, char** argv) {
 
     auto client = std::make_shared<URRobotClient>();
 
-    // Spin in background thread
-    std::thread spin_thread([client]() {
-        rclcpp::spin(client);
+    // Use executor to handle ROS2 spinning
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(client);
+
+    // Run executor in separate thread
+    std::thread spin_thread([&executor]() {
+        executor.spin();
     });
 
     // Wait for robot connection
     RCLCPP_INFO(client->get_logger(), "Waiting for robot connection...");
-    while (rclcpp::ok() && !client->isConnected()) {
+
+    // Manually check connection (executor is running)
+    auto start_time = std::chrono::steady_clock::now();
+    while (rclcpp::ok()) {
+        if (client->isConnected()) {
+            break;
+        }
+
+        auto elapsed = std::chrono::steady_clock::now() - start_time;
+        if (elapsed > 10s) {
+            RCLCPP_ERROR(client->get_logger(), "Failed to connect to robot (timeout)");
+            executor.cancel();
+            rclcpp::shutdown();
+            spin_thread.join();
+            return 1;
+        }
+
         std::this_thread::sleep_for(100ms);
     }
 
     if (!client->isConnected()) {
         RCLCPP_ERROR(client->get_logger(), "Failed to connect to robot");
+        executor.cancel();
         rclcpp::shutdown();
         spin_thread.join();
         return 1;
@@ -57,20 +78,26 @@ int main(int argc, char** argv) {
 
     // Set speed to 50%
     RCLCPP_INFO(client->get_logger(), "Setting speed slider to 50%%...");
-    if (client->setSpeedSlider(0.5)) {
-        RCLCPP_INFO(client->get_logger(), "✅ Speed slider set successfully");
-    } else {
-        RCLCPP_WARN(client->get_logger(), "❌ Failed to set speed slider");
+    {
+        auto result = client->setSpeedSlider(0.5, 1.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ Speed slider set successfully");
+        } else {
+            RCLCPP_WARN(client->get_logger(), "❌ Failed to set speed slider");
+        }
     }
 
     std::this_thread::sleep_for(2s);
 
     // Set speed to 100%
     RCLCPP_INFO(client->get_logger(), "Setting speed slider to 100%%...");
-    if (client->setSpeedSlider(1.0)) {
-        RCLCPP_INFO(client->get_logger(), "✅ Speed slider set successfully");
-    } else {
-        RCLCPP_WARN(client->get_logger(), "❌ Failed to set speed slider");
+    {
+        auto result = client->setSpeedSlider(1.0, 1.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ Speed slider set successfully");
+        } else {
+            RCLCPP_WARN(client->get_logger(), "❌ Failed to set speed slider");
+        }
     }
 
     std::this_thread::sleep_for(2s);
@@ -103,20 +130,26 @@ int main(int argc, char** argv) {
 
     // Example: Set DO[0] to HIGH
     RCLCPP_INFO(client->get_logger(), "Setting DO[0] (Standard) to HIGH...");
-    if (client->setDigitalOut(0, true)) {
-        RCLCPP_INFO(client->get_logger(), "✅ DO[0] set to HIGH");
-    } else {
-        RCLCPP_WARN(client->get_logger(), "❌ Failed to set DO[0]");
+    {
+        auto result = client->setDigitalOut(0, true, 1.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ DO[0] set to HIGH");
+        } else {
+            RCLCPP_WARN(client->get_logger(), "❌ Failed to set DO[0]");
+        }
     }
 
     std::this_thread::sleep_for(2s);
 
     // Set DO[0] to LOW
     RCLCPP_INFO(client->get_logger(), "Setting DO[0] to LOW...");
-    if (client->setDigitalOut(0, false)) {
-        RCLCPP_INFO(client->get_logger(), "✅ DO[0] set to LOW");
-    } else {
-        RCLCPP_WARN(client->get_logger(), "❌ Failed to set DO[0]");
+    {
+        auto result = client->setDigitalOut(0, false, 1.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ DO[0] set to LOW");
+        } else {
+            RCLCPP_WARN(client->get_logger(), "❌ Failed to set DO[0]");
+        }
     }
 
     std::this_thread::sleep_for(1s);
@@ -130,13 +163,13 @@ int main(int argc, char** argv) {
 
         // Turn ON
         for (int pin = 0; pin < 4; ++pin) {
-            client->setDigitalOut(pin, true);
+            auto result = client->setDigitalOut(pin, true, 1.0).get();
             std::this_thread::sleep_for(200ms);
         }
 
         // Turn OFF
         for (int pin = 0; pin < 4; ++pin) {
-            client->setDigitalOut(pin, false);
+            auto result = client->setDigitalOut(pin, false, 1.0).get();
             std::this_thread::sleep_for(200ms);
         }
     }

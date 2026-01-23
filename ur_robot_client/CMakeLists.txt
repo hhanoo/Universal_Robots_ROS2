@@ -29,6 +29,10 @@ find_package(ur_msgs REQUIRED)
 # * Common message types (기본 메시지 타입)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+
+# * TF2 for TCP pose tracking
+find_package(tf2_ros REQUIRED)
 
 # =========================================================
 # Include directories
@@ -51,6 +55,8 @@ ament_target_dependencies(${PROJECT_NAME}_lib
   ur_msgs
   sensor_msgs
   std_msgs
+  geometry_msgs
+  tf2_ros
 )
 
 # =========================================================
@@ -113,6 +119,8 @@ ament_export_dependencies(
   ur_msgs
   sensor_msgs
   std_msgs
+  geometry_msgs
+  tf2_ros
 )
 
 # =========================================================

@@ -58,19 +58,39 @@ int main(int argc, char** argv) {
 
     auto client = std::make_shared<URRobotClient>();
 
-    // Spin in background thread
-    std::thread spin_thread([client]() {
-        rclcpp::spin(client);
+    // Use executor to handle ROS2 spinning
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(client);
+
+    // Run executor in separate thread
+    std::thread spin_thread([&executor]() {
+        executor.spin();
     });
 
     // Wait for robot connection
     RCLCPP_INFO(client->get_logger(), "Waiting for robot connection...");
-    while (rclcpp::ok() && !client->isConnected()) {
+
+    // Manually check connection (executor is running)
+    auto start_time = std::chrono::steady_clock::now();
+    while (rclcpp::ok()) {
+        if (client->isConnected()) {
+            break;
+        }
+
+        auto elapsed = std::chrono::steady_clock::now() - start_time;
         std::this_thread::sleep_for(100ms);
+        if (elapsed > 10s) {
+            RCLCPP_ERROR(client->get_logger(), "Failed to connect to robot (timeout)");
+            executor.cancel();
+            rclcpp::shutdown();
+            spin_thread.join();
+            return 1;
+        }
     }
 
     if (!client->isConnected()) {
         RCLCPP_ERROR(client->get_logger(), "Failed to connect to robot");
+        executor.cancel();
         rclcpp::shutdown();
         spin_thread.join();
         return 1;
@@ -88,7 +108,12 @@ int main(int argc, char** argv) {
     // ========== 1. Speed Control ==========
     RCLCPP_INFO(client->get_logger(), "========== 1. Speed Control ==========");
     RCLCPP_INFO(client->get_logger(), "Setting speed to 30%% for safe operation...");
-    client->setSpeedSlider(0.3);
+    {
+        auto result = client->setSpeedSlider(0.3, 1.0).get();
+        if (result.success == false) {
+            RCLCPP_ERROR(client->get_logger(), "⚠️ Failed to set speed slider: %s", result.message.c_str());
+        }
+    }
     std::this_thread::sleep_for(1s);
 
     // ========== 2. MoveJ to Home ==========
@@ -96,19 +121,23 @@ int main(int argc, char** argv) {
     RCLCPP_INFO(client->get_logger(), "========== 2. MoveJ to Home ==========");
     std::vector<double> home = {0.0, -1.57, 1.57, -1.57, -1.57, 0.0};
 
-    if (client->moveJ(home, 0.3, true)) {
-        RCLCPP_INFO(client->get_logger(), "✅ Reached HOME position");
+    {
+        auto result = client->moveJ(home, 0.3, 30.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ Reached HOME position");
 
-        // Get current joint positions
-        std::vector<double> current_joints;
-        if (client->getJointPositions(current_joints)) {
-            RCLCPP_INFO(client->get_logger(), "Current joint positions:");
-            for (size_t i = 0; i < current_joints.size(); ++i) {
-                RCLCPP_INFO(client->get_logger(), "  Joint[%zu]: %.4f rad", i, current_joints[i]);
+            // Get current joint positions
+            std::vector<double> current_joints;
+            if (client->getJointPositions(current_joints)) {
+                RCLCPP_INFO(client->get_logger(), "Current joint positions:");
+                for (size_t i = 0; i < current_joints.size(); ++i) {
+                    RCLCPP_INFO(client->get_logger(),
+                                "  Joint[%zu]: %.4f rad", i, current_joints[i]);
+                }
             }
+        } else {
+            RCLCPP_ERROR(client->get_logger(), "❌ Failed to reach HOME: %s", result.message.c_str());
         }
-    } else {
-        RCLCPP_ERROR(client->get_logger(), "❌ Failed to reach HOME");
     }
 
     std::this_thread::sleep_for(2s);
@@ -117,7 +146,12 @@ int main(int argc, char** argv) {
     RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 3. Digital Output Control ==========");
     RCLCPP_INFO(client->get_logger(), "Turning ON DO[0] (Standard output)...");
-    client->setDigitalOut(0, true);
+    {
+        auto result = client->setDigitalOut(0, true, 1.0).get();
+        if (result.success == false) {
+            RCLCPP_ERROR(client->get_logger(), "⚠️ Failed to set DO[0]: %s", result.message.c_str());
+        }
+    }
     std::this_thread::sleep_for(1s);
 
     // ========== 4. MoveJ to Pre-Pick Position ==========
@@ -125,10 +159,13 @@ int main(int argc, char** argv) {
     RCLCPP_INFO(client->get_logger(), "========== 4. MoveJ to Pre-Pick ==========");
     std::vector<double> pre_pick = {0.5, -1.2, 1.0, -1.5, -1.57, 0.5};
 
-    if (client->moveJ(pre_pick, 0.3, true)) {
-        RCLCPP_INFO(client->get_logger(), "✅ Reached Pre-Pick position");
-    } else {
-        RCLCPP_ERROR(client->get_logger(), "❌ Failed to reach Pre-Pick");
+    {
+        auto result = client->moveJ(pre_pick, 0.3, 30.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ Reached Pre-Pick position");
+        } else {
+            RCLCPP_ERROR(client->get_logger(), "❌ Failed to reach Pre-Pick: %s", result.message.c_str());
+        }
     }
 
     std::this_thread::sleep_for(1s);
@@ -144,10 +181,13 @@ int main(int argc, char** argv) {
     );
 
     RCLCPP_INFO(client->get_logger(), "Moving down to pick position...");
-    if (client->moveL(tmatrix_down, 0.2, true)) {
-        RCLCPP_INFO(client->get_logger(), "✅ Reached pick position");
-    } else {
-        RCLCPP_WARN(client->get_logger(), "⚠️ MoveL might have failed (check if position is reachable)");
+    {
+        auto result = client->moveL(tmatrix_down, 0.2, 30.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ Reached pick position");
+        } else {
+            RCLCPP_ERROR(client->get_logger(), "❌ Failed to reach pick position: %s", result.message.c_str());
+        }
     }
 
     std::this_thread::sleep_for(1s);
@@ -156,7 +196,12 @@ int main(int argc, char** argv) {
     RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 6. Gripper Control (DO[1]) ==========");
     RCLCPP_INFO(client->get_logger(), "Closing gripper (DO[1] = HIGH)...");
-    client->setDigitalOut(1, true);
+    {
+        auto result = client->setDigitalOut(1, true, 1.0).get();
+        if (result.success == false) {
+            RCLCPP_ERROR(client->get_logger(), "⚠️ Failed to set DO[1]: %s", result.message.c_str());
+        }
+    }
     std::this_thread::sleep_for(1s);
 
     // ========== 7. MoveL Up ==========
@@ -168,10 +213,13 @@ int main(int argc, char** argv) {
         M_PI, 0.0, 0.0);
 
     RCLCPP_INFO(client->get_logger(), "Moving up with object...");
-    if (client->moveL(tmatrix_up, 0.2, true)) {
-        RCLCPP_INFO(client->get_logger(), "✅ Moved up successfully");
-    } else {
-        RCLCPP_WARN(client->get_logger(), "⚠️ MoveL might have failed");
+    {
+        auto result = client->moveL(tmatrix_up, 0.2, 30.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ Moved up successfully");
+        } else {
+            RCLCPP_ERROR(client->get_logger(), "❌ Failed to move up: %s", result.message.c_str());
+        }
     }
 
     std::this_thread::sleep_for(1s);
@@ -181,10 +229,13 @@ int main(int argc, char** argv) {
     RCLCPP_INFO(client->get_logger(), "========== 8. MoveJ to Place Position ==========");
     std::vector<double> place = {-0.5, -1.2, 1.0, -1.5, -1.57, -0.5};
 
-    if (client->moveJ(place, 0.3, true)) {
-        RCLCPP_INFO(client->get_logger(), "✅ Reached Place position");
-    } else {
-        RCLCPP_ERROR(client->get_logger(), "❌ Failed to reach Place position");
+    {
+        auto result = client->moveJ(place, 0.3, 30.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ Reached Place position");
+        } else {
+            RCLCPP_ERROR(client->get_logger(), "❌ Failed to reach Place position: %s", result.message.c_str());
+        }
     }
 
     std::this_thread::sleep_for(1s);
@@ -193,29 +244,52 @@ int main(int argc, char** argv) {
     RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 9. Release Object ==========");
     RCLCPP_INFO(client->get_logger(), "Opening gripper (DO[1] = LOW)...");
-    client->setDigitalOut(1, false);
+    {
+        auto result = client->setDigitalOut(1, false, 1.0).get();
+        if (result.success == false) {
+            RCLCPP_ERROR(client->get_logger(), "⚠️ Failed to set DO[1]: %s", result.message.c_str());
+        }
+    }
     std::this_thread::sleep_for(1s);
 
     // ========== 10. Return to Home ==========
     RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 10. Return to Home ==========");
 
-    if (client->moveJ(home, 0.3, true)) {
-        RCLCPP_INFO(client->get_logger(), "✅ Returned to HOME");
-    } else {
-        RCLCPP_ERROR(client->get_logger(), "❌ Failed to return to HOME");
+    {
+        auto result = client->moveJ(home, 0.3, 30.0).get();
+        if (result.success) {
+            RCLCPP_INFO(client->get_logger(), "✅ Returned to HOME");
+        } else {
+            RCLCPP_ERROR(client->get_logger(), "❌ Failed to return to HOME: %s", result.message.c_str());
+        }
     }
 
     // ========== 11. Turn OFF Outputs ==========
     RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========== 11. Cleanup ==========");
     RCLCPP_INFO(client->get_logger(), "Turning OFF all outputs...");
-    client->setDigitalOut(0, false);
-    client->setDigitalOut(1, false);
+    {
+        auto result = client->setDigitalOut(0, false, 1.0).get();
+        if (result.success == false) {
+            RCLCPP_ERROR(client->get_logger(), "⚠️ Failed to set DO[0]: %s", result.message.c_str());
+        }
+    }
+    {
+        auto result = client->setDigitalOut(1, false, 1.0).get();
+        if (result.success == false) {
+            RCLCPP_ERROR(client->get_logger(), "⚠️ Failed to set DO[1]: %s", result.message.c_str());
+        }
+    }
 
     // ========== 12. Reset Speed ==========
     RCLCPP_INFO(client->get_logger(), "Resetting speed to 100%%...");
-    client->setSpeedSlider(1.0);
+    {
+        auto result = client->setSpeedSlider(1.0, 1.0).get();
+        if (result.success == false) {
+            RCLCPP_ERROR(client->get_logger(), "⚠️ Failed to set speed slider: %s", result.message.c_str());
+        }
+    }
 
     std::this_thread::sleep_for(1s);
 
