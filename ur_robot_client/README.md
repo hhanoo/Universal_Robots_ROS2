@@ -1,4 +1,4 @@
-# UR Control Client (C++)
+# UR Robot Client (C++)
 
 C++ 기반 UR 로봇 제어 클라이언트 라이브러리 및 예제
 
@@ -16,7 +16,7 @@ C++ 기반 UR 로봇 제어 클라이언트 라이브러리 및 예제
 
 ## 📦 패키지 정보
 
-- **이름**: `ur_control_client`
+- **이름**: `ur_robot_client`
 - **버전**: `1.0.0`
 - **빌드 타입**: `ament_cmake`
 - **라이선스**: BSD-3-Clause
@@ -33,7 +33,7 @@ C++ 기반 UR 로봇 제어 클라이언트 라이브러리 및 예제
 **실행:**
 
 ```bash
-ros2 run ur_control_client example_movej
+ros2 run ur_robot_client example_movej
 ```
 
 **기능:**
@@ -51,7 +51,7 @@ ros2 run ur_control_client example_movej
 **실행:**
 
 ```bash
-ros2 run ur_control_client example_io_speed
+ros2 run ur_robot_client example_io_speed
 ```
 
 **기능:**
@@ -70,7 +70,7 @@ ros2 run ur_control_client example_io_speed
 **실행:**
 
 ```bash
-ros2 run ur_control_client example_complete
+ros2 run ur_robot_client example_complete
 ```
 
 **기능:**
@@ -95,7 +95,7 @@ ros2 run ur_control_client example_complete
 
 ```bash
 cd /ros2_ws
-colcon build --packages-select ur_control_client
+colcon build --packages-select ur_robot_client
 source install/setup.bash
 ```
 
@@ -195,13 +195,13 @@ ros2 run ur_motion motion_action_server
 
 ```bash
 # MoveJ 예제
-ros2 run ur_control_client example_movej
+ros2 run ur_robot_client example_movej
 
 # I/O & Speed 예제
-ros2 run ur_control_client example_io_speed
+ros2 run ur_robot_client example_io_speed
 
 # 통합 예제 (Pick & Place)
-ros2 run ur_control_client example_complete
+ros2 run ur_robot_client example_complete
 ```
 
 ---
@@ -211,14 +211,14 @@ ros2 run ur_control_client example_complete
 ### 기본 사용법
 
 ```cpp
-#include "ur_control_client/ur_control_client.hpp"
+#include "ur_robot_client/ur_robot_client.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <thread>
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
-    auto client = std::make_shared<URControlClient>();
+    auto client = std::make_shared<URRobotClient>();
 
     // Spin in background thread
     std::thread spin_thread([client]() {
@@ -320,21 +320,21 @@ if (client->getJointPositions(joints)) {
 ### 1. 새 C++ 파일 생성
 
 ```bash
-cd /ros2_ws/src/Universal_Robots_ROS2/ur_control_client/src
+cd /ros2_ws/src/Universal_Robots_ROS2/ur_robot_client/src
 touch my_program.cpp
 ```
 
 ### 2. 기본 구조 작성
 
 ```cpp
-#include "ur_control_client/ur_control_client.hpp"
+#include "ur_robot_client/ur_robot_client.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <thread>
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
-    auto client = std::make_shared<URControlClient>();
+    auto client = std::make_shared<URRobotClient>();
 
     // Spin in background thread
     std::thread spin_thread([client]() {
@@ -387,16 +387,16 @@ install(
 
 ```bash
 cd /ros2_ws
-colcon build --packages-select ur_control_client
+colcon build --packages-select ur_robot_client
 source install/setup.bash
-ros2 run ur_control_client my_program
+ros2 run ur_robot_client my_program
 ```
 
 ---
 
 ## 📚 API 참고
 
-### URControlClient 클래스
+### URRobotClient 클래스
 
 #### Motion Control
 

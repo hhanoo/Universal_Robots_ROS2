@@ -1,5 +1,5 @@
-#ifndef UR_CONTROL_CLIENT_HPP
-#define UR_CONTROL_CLIENT_HPP
+#ifndef UR_ROBOT_CLIENT_HPP
+#define UR_ROBOT_CLIENT_HPP
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -31,10 +31,10 @@
  *   - Digital I/O control
  *   - Robot state monitoring
  */
-class URControlClient : public rclcpp::Node {
+class URRobotClient : public rclcpp::Node {
    public:
-    URControlClient();
-    ~URControlClient();
+    URRobotClient();
+    ~URRobotClient();
 
     // ========== Motion Control ==========
     /**
@@ -142,4 +142,4 @@ class URControlClient : public rclcpp::Node {
     bool waitForActionServer(const std::string& action_name, std::chrono::seconds timeout);
 };
 
-#endif  // UR_CONTROL_CLIENT_HPP
+#endif  // UR_ROBOT_CLIENT_HPP

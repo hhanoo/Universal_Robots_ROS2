@@ -1,12 +1,12 @@
-#include "ur_control_client/ur_control_client.hpp"
+#include "ur_robot_client/ur_robot_client.hpp"
 
 #include <chrono>
 #include <future>
 
 using namespace std::chrono_literals;
 
-URControlClient::URControlClient()
-    : Node("ur_control_client"),
+URRobotClient::URRobotClient()
+    : Node("ur_robot_client"),
       last_joint_state_time_(this->now()),
       connected_(false),
       speed_scaling_(1.0) {
@@ -28,17 +28,17 @@ URControlClient::URControlClient()
     joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
         "/joint_states",
         10,
-        std::bind(&URControlClient::jointStateCallback, this, std::placeholders::_1));
+        std::bind(&URRobotClient::jointStateCallback, this, std::placeholders::_1));
 
     speed_scaling_sub_ = this->create_subscription<std_msgs::msg::Float64>(
         "/speed_scaling_state_broadcaster/speed_scaling",
         10,
-        std::bind(&URControlClient::speedScalingCallback, this, std::placeholders::_1));
+        std::bind(&URRobotClient::speedScalingCallback, this, std::placeholders::_1));
 
     io_states_sub_ = this->create_subscription<ur_msgs::msg::IOStates>(
         "/io_and_status_controller/io_states",
         10,
-        std::bind(&URControlClient::ioStatesCallback, this, std::placeholders::_1));
+        std::bind(&URRobotClient::ioStatesCallback, this, std::placeholders::_1));
 
     // Initialize I/O states
     digital_in_states_.fill(false);
@@ -47,7 +47,7 @@ URControlClient::URControlClient()
     RCLCPP_INFO(this->get_logger(), "UR Control Client initialized");
 }
 
-URControlClient::~URControlClient() {
+URRobotClient::~URRobotClient() {
     RCLCPP_INFO(this->get_logger(), "UR Control Client shutting down");
 }
 
@@ -55,7 +55,7 @@ URControlClient::~URControlClient() {
 // Motion Control
 // ============================================================
 
-bool URControlClient::moveJ(const std::vector<double>& joints, double velocity, bool wait) {
+bool URRobotClient::moveJ(const std::vector<double>& joints, double velocity, bool wait) {
     if (joints.size() != 6) {
         RCLCPP_ERROR(this->get_logger(), "MoveJ requires 6 joint values, got %zu", joints.size());
         return false;
@@ -119,7 +119,7 @@ bool URControlClient::moveJ(const std::vector<double>& joints, double velocity, 
     }
 }
 
-bool URControlClient::moveL(const std::array<double, 16>& tmatrix, double velocity, bool wait) {
+bool URRobotClient::moveL(const std::array<double, 16>& tmatrix, double velocity, bool wait) {
     if (!movel_client_->wait_for_action_server(5s)) {
         RCLCPP_ERROR(this->get_logger(), "MoveL action server not available");
         return false;
@@ -182,7 +182,7 @@ bool URControlClient::moveL(const std::array<double, 16>& tmatrix, double veloci
 // Speed Control
 // ============================================================
 
-bool URControlClient::setSpeedSlider(double fraction) {
+bool URRobotClient::setSpeedSlider(double fraction) {
     if (!speed_slider_client_) {
         RCLCPP_ERROR(this->get_logger(), "Speed slider service client not initialized");
         return false;
@@ -218,7 +218,7 @@ bool URControlClient::setSpeedSlider(double fraction) {
     return response->success;
 }
 
-double URControlClient::getSpeedScaling() const {
+double URRobotClient::getSpeedScaling() const {
     return speed_scaling_;
 }
 
@@ -226,7 +226,7 @@ double URControlClient::getSpeedScaling() const {
 // I/O Control
 // ============================================================
 
-bool URControlClient::setDigitalOut(int pin, bool value) {
+bool URRobotClient::setDigitalOut(int pin, bool value) {
     if (!set_io_client_) {
         RCLCPP_ERROR(this->get_logger(), "I/O service client not initialized");
         return false;
@@ -264,14 +264,14 @@ bool URControlClient::setDigitalOut(int pin, bool value) {
     return response->success;
 }
 
-bool URControlClient::getDigitalIn(int pin) const {
+bool URRobotClient::getDigitalIn(int pin) const {
     if (pin < 0 || pin >= 18) {
         return false;
     }
     return digital_in_states_[pin];
 }
 
-bool URControlClient::getDigitalOut(int pin) const {
+bool URRobotClient::getDigitalOut(int pin) const {
     if (pin < 0 || pin >= 18) {
         return false;
     }
@@ -282,11 +282,11 @@ bool URControlClient::getDigitalOut(int pin) const {
 // State Monitoring
 // ============================================================
 
-bool URControlClient::isConnected() const {
+bool URRobotClient::isConnected() const {
     return connected_;
 }
 
-bool URControlClient::getJointPositions(std::vector<double>& joints) const {
+bool URRobotClient::getJointPositions(std::vector<double>& joints) const {
     if (!latest_joint_state_ || !connected_) {
         return false;
     }
@@ -313,7 +313,7 @@ bool URControlClient::getJointPositions(std::vector<double>& joints) const {
 // Callbacks
 // ============================================================
 
-void URControlClient::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg) {
+void URRobotClient::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg) {
     if (!msg) {
         return;
     }
@@ -329,7 +329,7 @@ void URControlClient::jointStateCallback(const sensor_msgs::msg::JointState::Sha
     }
 }
 
-void URControlClient::speedScalingCallback(const std_msgs::msg::Float64::SharedPtr msg) {
+void URRobotClient::speedScalingCallback(const std_msgs::msg::Float64::SharedPtr msg) {
     if (!msg) {
         return;
     }
@@ -343,7 +343,7 @@ void URControlClient::speedScalingCallback(const std_msgs::msg::Float64::SharedP
     }
 }
 
-void URControlClient::ioStatesCallback(const ur_msgs::msg::IOStates::SharedPtr msg) {
+void URRobotClient::ioStatesCallback(const ur_msgs::msg::IOStates::SharedPtr msg) {
     if (!msg) {
         return;
     }

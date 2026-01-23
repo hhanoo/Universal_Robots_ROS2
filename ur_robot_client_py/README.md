@@ -904,7 +904,7 @@ robot.set_speed_slider(1.0, wait=False)  # ← Non-blocking!
 
 ### 관련 패키지
 
-- **`ur_control_client`**: C++ 클라이언트 라이브러리 (동일 기능)
+- **`ur_robot_client`**: C++ 클라이언트 라이브러리 (동일 기능)
 - **`ur_motion`**: Motion Action Server 및 MoveIt 백엔드
 - **`ur_robot_driver_wrapper`**: UR ROS2 Driver 래퍼
 - **`ur_moveit_config_wrapper`**: MoveIt 설정 래퍼

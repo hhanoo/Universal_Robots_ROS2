@@ -15,7 +15,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <thread>
 
-#include "ur_control_client/ur_control_client.hpp"
+#include "ur_robot_client/ur_robot_client.hpp"
 
 using namespace std::chrono_literals;
 
@@ -56,7 +56,7 @@ std::array<double, 16> createTMatrix(double x, double y, double z,
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
-    auto client = std::make_shared<URControlClient>();
+    auto client = std::make_shared<URRobotClient>();
 
     // Spin in background thread
     std::thread spin_thread([client]() {

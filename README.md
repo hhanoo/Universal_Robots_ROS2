@@ -7,7 +7,7 @@ Universal Robots ROS2 패키지 모음
 - `ur_robot_driver_wrapper` - UR 로봇 드라이버 래퍼
 - `ur_moveit_config_wrapper` - MoveIt 설정 래퍼
 - `ur_motion` - Motion Action Server (MoveJ/MoveL)
-- `ur_control_client` - C++ 클라이언트 라이브러리
+- `ur_robot_client` - C++ 클라이언트 라이브러리
 - `ur_robot_client_py` - **Python 로봇 제어 라이브러리** (`URRobotClient` 클래스)
 
 ## 💡 주요 특징

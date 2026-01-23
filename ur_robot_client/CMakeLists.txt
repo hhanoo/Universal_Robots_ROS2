@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(ur_control_client)
+project(ur_robot_client)
 
 # =========================================================
 # Compiler options
@@ -41,7 +41,7 @@ include_directories(include)
 #  - 다른 패키지에서 재사용 가능한 UR 로봇 제어 클라이언트 라이브러리
 # =========================================================
 add_library(${PROJECT_NAME}_lib SHARED
-  src/ur_control_client.cpp
+  src/ur_robot_client.cpp
 )
 
 ament_target_dependencies(${PROJECT_NAME}_lib
