@@ -18,12 +18,15 @@
 
 // Action definitions
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <functional>
-#include <future>  // 추가: async 패턴 지원
+#include <future>
 #include <memory>
-#include <mutex>  // 추가: goal handle 보호
+#include <mutex>
+#include <rclcpp/executors.hpp>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "ur_motion/action/move_j.hpp"
@@ -52,137 +55,40 @@ class URRobotClient : public rclcpp::Node {
     // ========================================================
     // Connection & Robot Ready
     // ========================================================
-    /**
-     * @brief Check if robot is connected
-     * @return true if connected
-     *
-     * Note: Connected means joint_states received at least once
-     */
     bool isConnected() const;
-
-    /**
-     * @brief Check if robot is fully ready
-     * @param require_io If true, IO states must also be received
-     * @return true if robot is ready
-     *
-     *
-     * Ready conditions:
-     * - joint_states received
-     * - speed_scaling received
-     * - TCP TF available
-     * - (optional) IO states received
-     */
     bool isRobotReady(bool require_io = false) const;
-
-    /**
-     * @brief Wait until robot is fully ready
-     * @param timeout_sec Maximum wait time in seconds (default: 5.0)
-     * @param require_io If true, IO states must also be received
-     * @return true if ready within timeout
-     *
-     */
     bool waitRobotReady(double timeout_sec = 5.0, bool require_io = false);
 
     // ========================================================
     // State Monitoring
     // ========================================================
-    /**
-     * @brief Get latest joint positions
-     * @param joints Output vector for 6 joint positions
-     * @return true if valid data available
-     */
-    bool getJointPositions(std::vector<double>& joints) const;
-
-    /**
-     * @brief Get current TCP pose as 4x4 transformation matrix
-     * @return 4x4 homogeneous transformation matrix (base -> tool0_controller)
-     *
-     */
-    std::array<double, 16> getTcpPose() const;
-
-    /**
-     * @brief Check if TCP pose is available from TF
-     * @return true if TCP pose is being tracked via TF
-     *
-     */
     bool isTcpPoseAvailable() const;
 
-    /**
-     * @brief Get current speed slider value (user-set)
-     * @return Speed slider fraction [0.01 ~ 1.0]
-     *
-     */
-    double getSpeedSlider() const;
+    std::array<double, 6>  getJointPositions() const;
+    std::array<double, 16> getTcpPose() const;
 
-    /**
-     * @brief Get current speed scaling (actual robot speed)
-     * @return Current speed scaling [0.0 ~ 1.0]
-     *
-     * Note: speed_scaling = speed_slider * target_speed_fraction
-     *       In normal operation (target_speed_fraction=1.0), they are the same.
-     */
+    double getSpeedSlider() const;
     double getSpeedScaling() const;
 
-    /**
-     * @brief Get digital input pin state
-     * @param pin Pin number [0-17]
-     * @return Pin state (true=HIGH, false=LOW)
-     */
     bool getDigitalIn(int pin) const;
-
-    /**
-     * @brief Get digital output pin state
-     * @param pin Pin number [0-17]
-     * @return Pin state (true=HIGH, false=LOW)
-     */
     bool getDigitalOut(int pin) const;
 
     // ========================================================
     // Motion Control
     // ========================================================
-    /**
-     * @brief Execute MoveJ (joint space motion)
-     * @param joints 6 joint positions in radians
-     * @param velocity Velocity scaling [0.01 ~ 1.0]
-     * @param timeout Maximum wait time in seconds (default: 30.0)
-     * @return Future with MotionResult (success, message)
-     *
-     */
     std::future<MotionResult> moveJ(
         const std::vector<double>& joints,
         double                     velocity = 0.5,
         double                     timeout  = 30.0);
-
-    /**
-     * @brief Execute MoveL (Cartesian linear motion)
-     * @param tmatrix 4x4 transformation matrix (row-major, 16 elements)
-     * @param velocity Velocity scaling [0.01 ~ 1.0]
-     * @param timeout Maximum wait time in seconds (default: 30.0)
-     * @return Future with MotionResult (success, message)
-     *
-     */
     std::future<MotionResult> moveL(
         const std::array<double, 16>& tmatrix,
         double                        velocity = 0.5,
         double                        timeout  = 30.0);
-
-    /**
-     * @brief Cancel current MoveJ/MoveL motion
-     * @return true if cancellation request was sent
-     *
-     */
     bool moveCancel();
 
     // ========================================================
     // Speed Control
     // ========================================================
-    /**
-     * @brief Set speed slider fraction
-     * @param fraction Speed slider [0.01 ~ 1.0]
-     * @param timeout Maximum wait time in seconds (default: 1.0)
-     * @return Future with MotionResult (success, message)
-     *
-     */
     std::future<MotionResult> setSpeedSlider(
         double fraction,
         double timeout = 1.0);
@@ -190,17 +96,6 @@ class URRobotClient : public rclcpp::Node {
     // ========================================================
     // I/O Control
     // ========================================================
-    /**
-     * @brief Set digital output pin
-     * @param pin Pin number [0-17]
-     *            0-7: Standard digital outputs
-     *            8-15: Configurable digital outputs
-     *            16-17: Tool digital outputs
-     * @param value Output value (true=HIGH, false=LOW)
-     * @param timeout Maximum wait time in seconds (default: 1.0)
-     * @return Future with MotionResult (success, message)
-     *
-     */
     std::future<MotionResult> setDigitalOut(
         int    pin,
         bool   value,
@@ -210,6 +105,11 @@ class URRobotClient : public rclcpp::Node {
     // ========================================================
     // Initialization
     // ========================================================
+    // * Executor
+    rclcpp::executors::MultiThreadedExecutor::SharedPtr executor_;
+    std::thread                                         executor_thread_;
+    std::atomic<bool>                                   executor_running_;
+
     // * Action Clients
     rclcpp_action::Client<ur_motion::action::MoveJ>::SharedPtr movej_client_;
     rclcpp_action::Client<ur_motion::action::MoveL>::SharedPtr movel_client_;
@@ -256,6 +156,12 @@ class URRobotClient : public rclcpp::Node {
     bool tcp_ready_;
 
     // ========================================================
+    // Executor Thread
+    // ========================================================
+    void startExecutorThread();
+    void stopExecutorThread();
+
+    // ========================================================
     // Callbacks
     // ========================================================
     void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg);
@@ -265,16 +171,7 @@ class URRobotClient : public rclcpp::Node {
     // ========================================================
     // Helper Functions
     // ========================================================
-    /**
-     * @brief Update TCP pose from TF transform
-     */
-    void updateTcpPoseFromTf();
-
-    /**
-     * @brief Convert ROS Transform to 4x4 transformation matrix
-     * @param transform ROS Transform message
-     * @return 4x4 transformation matrix (row-major)
-     */
+    void                   updateTcpPoseFromTf();
     std::array<double, 16> transformToMatrix(const geometry_msgs::msg::Transform& transform);
 };
 

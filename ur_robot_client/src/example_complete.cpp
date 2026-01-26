@@ -127,13 +127,11 @@ int main(int argc, char** argv) {
             RCLCPP_INFO(client->get_logger(), "✅ Reached HOME position");
 
             // Get current joint positions
-            std::vector<double> current_joints;
-            if (client->getJointPositions(current_joints)) {
-                RCLCPP_INFO(client->get_logger(), "Current joint positions:");
-                for (size_t i = 0; i < current_joints.size(); ++i) {
-                    RCLCPP_INFO(client->get_logger(),
-                                "  Joint[%zu]: %.4f rad", i, current_joints[i]);
-                }
+            std::array<double, 6> current_joints = client->getJointPositions();
+            RCLCPP_INFO(client->get_logger(), "Current joint positions:");
+            for (size_t i = 0; i < 6; ++i) {
+                RCLCPP_INFO(client->get_logger(),
+                            "  Joint[%zu]: %.4f rad", i, current_joints[i]);
             }
         } else {
             RCLCPP_ERROR(client->get_logger(), "❌ Failed to reach HOME: %s", result.message.c_str());

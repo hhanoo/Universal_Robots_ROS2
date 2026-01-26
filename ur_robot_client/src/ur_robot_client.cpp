@@ -8,6 +8,7 @@ using namespace std::chrono_literals;
 
 URRobotClient::URRobotClient()
     : Node("ur_robot_client"),
+      executor_running_(false),
       connected_(false),
       last_joint_state_time_(rclcpp::Clock().now()),
       speed_slider_(1.0),
@@ -51,28 +52,50 @@ URRobotClient::URRobotClient()
     tf_buffer_   = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
+    // Initialize TCP pose matrix
+    tcp_pose_matrix_.fill(0.0);
+    tcp_pose_matrix_[0] = tcp_pose_matrix_[5] = tcp_pose_matrix_[10] = tcp_pose_matrix_[15] = 1.0;
+
     // Initialize I/O states
     digital_in_states_.fill(false);
     digital_out_states_.fill(false);
 
-    // Initialize TCP pose matrix
-    tcp_pose_matrix_.fill(0.0);
-    tcp_pose_matrix_[0] = tcp_pose_matrix_[5] = tcp_pose_matrix_[10] = tcp_pose_matrix_[15] = 1.0;
+    // Start executor thread
+    startExecutorThread();
 
     RCLCPP_INFO(this->get_logger(), "UR Robot Controller initialized");
 }
 
 URRobotClient::~URRobotClient() {
     RCLCPP_INFO(this->get_logger(), "UR Robot Client shutting down");
+    stopExecutorThread();
 }
 
 // ========================================================================================
 // Connection & Robot Ready
 // ========================================================================================
+/**
+ * @brief Check if robot is connected
+ * @return true if connected
+ *
+ * Note: Connected means joint_states received at least once
+ */
 bool URRobotClient::isConnected() const {
     return connected_;
 }
 
+/**
+ * @brief Check if robot is fully ready
+ * @param require_io If true, IO states must also be received
+ * @return true if robot is ready
+ *
+ *
+ * Ready conditions:
+ * - joint_states received
+ * - speed_scaling received
+ * - TCP TF available
+ * - (optional) IO states received
+ */
 bool URRobotClient::isRobotReady(bool require_io) const {
     bool base_ready = joint_state_ready_ && speed_ready_ && tcp_ready_;
 
@@ -82,6 +105,13 @@ bool URRobotClient::isRobotReady(bool require_io) const {
     return base_ready;
 }
 
+/**
+ * @brief Wait until robot is fully ready
+ * @param timeout_sec Maximum wait time in seconds (default: 5.0)
+ * @param require_io If true, IO states must also be received
+ * @return true if ready within timeout
+ *
+ */
 bool URRobotClient::waitRobotReady(double timeout_sec, bool require_io) {
     auto start_time = this->now();
     auto timeout    = rclcpp::Duration::from_seconds(timeout_sec);
@@ -91,7 +121,6 @@ bool URRobotClient::waitRobotReady(double timeout_sec, bool require_io) {
             RCLCPP_INFO(this->get_logger(), "🤖 Robot fully ready");
             return true;
         }
-        rclcpp::spin_some(this->get_node_base_interface());
         std::this_thread::sleep_for(50ms);
     }
 
@@ -102,45 +131,75 @@ bool URRobotClient::waitRobotReady(double timeout_sec, bool require_io) {
 // ========================================================================================
 // State Monitoring
 // ========================================================================================
-bool URRobotClient::getJointPositions(std::vector<double>& joints) const {
+/**
+ * @brief Check if TCP pose is available from TF
+ * @return true if TCP pose is being tracked via TF
+ *
+ */
+bool URRobotClient::isTcpPoseAvailable() const {
+    return tcp_pose_available_;
+}
+
+/**
+ * @brief Get latest joint positions
+ * @return 6 joint positions in radians
+ */
+std::array<double, 6> URRobotClient::getJointPositions() const {
     if (!latest_joint_state_ || !connected_) {
-        return false;
+        return std::array<double, 6>();
     }
 
     // Check if data is recent (within 1 second)
     rclcpp::Duration time_since_update = this->now() - last_joint_state_time_;
     if (time_since_update.seconds() > 1.0) {
-        return false;
+        return std::array<double, 6>();
     }
 
     if (latest_joint_state_->position.size() >= 6) {
-        joints.clear();
-        joints.reserve(6);
+        std::array<double, 6> joints;
         for (size_t i = 0; i < 6; ++i) {
-            joints.push_back(latest_joint_state_->position[i]);
+            joints[i] = latest_joint_state_->position[i];
         }
-        return true;
+        return joints;
     }
 
-    return false;
+    return std::array<double, 6>();
 }
 
+/**
+ * @brief Get current TCP pose as 4x4 transformation matrix
+ * @return 4x4 homogeneous transformation matrix (base -> tool0_controller)
+ *
+ */
 std::array<double, 16> URRobotClient::getTcpPose() const {
     return tcp_pose_matrix_;
 }
 
-bool URRobotClient::isTcpPoseAvailable() const {
-    return tcp_pose_available_;
-}
-
+/**
+ * @brief Get current speed slider value (user-set)
+ * @return Speed slider fraction [0.01 ~ 1.0]
+ *
+ */
 double URRobotClient::getSpeedSlider() const {
     return speed_slider_;
 }
 
+/**
+ * @brief Get current speed scaling (actual robot speed)
+ * @return Current speed scaling [0.0 ~ 1.0]
+ *
+ * Note: speed_scaling = speed_slider * target_speed_fraction
+ *       In normal operation (target_speed_fraction=1.0), they are the same.
+ */
 double URRobotClient::getSpeedScaling() const {
     return speed_scaling_;
 }
 
+/**
+ * @brief Get digital input pin state
+ * @param pin Pin number [0-17]
+ * @return Pin state (true=HIGH, false=LOW)
+ */
 bool URRobotClient::getDigitalIn(int pin) const {
     if (pin < 0 || pin >= 18) {
         return false;
@@ -148,6 +207,11 @@ bool URRobotClient::getDigitalIn(int pin) const {
     return digital_in_states_[pin];
 }
 
+/**
+ * @brief Get digital output pin state
+ * @param pin Pin number [0-17]
+ * @return Pin state (true=HIGH, false=LOW)
+ */
 bool URRobotClient::getDigitalOut(int pin) const {
     if (pin < 0 || pin >= 18) {
         return false;
@@ -158,6 +222,14 @@ bool URRobotClient::getDigitalOut(int pin) const {
 // ========================================================================================
 // Motion Control
 // ========================================================================================
+/**
+ * @brief Execute MoveJ (joint space motion)
+ * @param joints 6 joint positions in radians
+ * @param velocity Velocity scaling [0.01 ~ 1.0]
+ * @param timeout Maximum wait time in seconds (default: 30.0)
+ * @return Future with MotionResult (success, message)
+ *
+ */
 std::future<URRobotClient::MotionResult> URRobotClient::moveJ(
     // Create promise and future
     const std::vector<double>& joints, double velocity, double timeout) {
@@ -288,6 +360,14 @@ std::future<URRobotClient::MotionResult> URRobotClient::moveJ(
     return future;
 }
 
+/**
+ * @brief Execute MoveL (Cartesian linear motion)
+ * @param tmatrix 4x4 transformation matrix (row-major, 16 elements)
+ * @param velocity Velocity scaling [0.01 ~ 1.0]
+ * @param timeout Maximum wait time in seconds (default: 30.0)
+ * @return Future with MotionResult (success, message)
+ *
+ */
 std::future<URRobotClient::MotionResult> URRobotClient::moveL(
     const std::array<double, 16>& tmatrix, double velocity, double timeout) {
     // Create promise and future
@@ -412,6 +492,11 @@ std::future<URRobotClient::MotionResult> URRobotClient::moveL(
     return future;
 }
 
+/**
+ * @brief Cancel current MoveJ/MoveL motion
+ * @return true if cancellation request was sent
+ *
+ */
 bool URRobotClient::moveCancel() {
     std::lock_guard<std::mutex> lock(goal_mutex_);
     bool                        cancelled = false;
@@ -440,6 +525,13 @@ bool URRobotClient::moveCancel() {
 // ========================================================================================
 // Speed Control
 // ========================================================================================
+/**
+ * @brief Set speed slider fraction
+ * @param fraction Speed slider [0.01 ~ 1.0]
+ * @param timeout Maximum wait time in seconds (default: 1.0)
+ * @return Future with MotionResult (success, message)
+ *
+ */
 std::future<URRobotClient::MotionResult> URRobotClient::setSpeedSlider(
     double fraction, double timeout) {
     // Create promise and future
@@ -528,6 +620,17 @@ std::future<URRobotClient::MotionResult> URRobotClient::setSpeedSlider(
 // ========================================================================================
 // I/O Control
 // ========================================================================================
+/**
+ * @brief Set digital output pin
+ * @param pin Pin number [0-17]
+ *            0-7: Standard digital outputs
+ *            8-15: Configurable digital outputs
+ *            16-17: Tool digital outputs
+ * @param value Output value (true=HIGH, false=LOW)
+ * @param timeout Maximum wait time in seconds (default: 1.0)
+ * @return Future with MotionResult (success, message)
+ *
+ */
 std::future<URRobotClient::MotionResult> URRobotClient::setDigitalOut(
     int pin, bool value, double timeout) {
     // Create promise and future
@@ -614,6 +717,59 @@ std::future<URRobotClient::MotionResult> URRobotClient::setDigitalOut(
     return future;
 }
 
+// ========================================================
+// Executor Thread
+// ========================================================
+/**
+ * @brief Start executor thread
+ */
+void URRobotClient::startExecutorThread() {
+    executor_running_ = true;
+
+    // Create MultiThreadedExecutor
+    executor_ = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+    executor_->add_node(this->get_node_base_interface());
+
+    // Start executor in separate thread
+    executor_thread_ = std::thread([this]() {
+        RCLCPP_INFO(this->get_logger(), "🔄 Executor thread started");
+        executor_->spin();
+        RCLCPP_INFO(this->get_logger(), "🛑 Executor thread stopped");
+    });
+
+    RCLCPP_INFO(this->get_logger(), "✅ Background executor started");
+}
+
+/**
+ * @brief Stop executor thread
+ */
+void URRobotClient::stopExecutorThread() {
+    if (!executor_running_) {
+        return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "Stopping executor thread...");
+    executor_running_ = false;
+
+    // Cancel executor
+    if (executor_) {
+        executor_->cancel();
+    }
+
+    // Join executor thread
+    if (executor_thread_.joinable()) {
+        executor_thread_.join();
+    }
+
+    // Remove node from executor
+    if (executor_) {
+        executor_->remove_node(this->get_node_base_interface());
+        executor_.reset();
+    }
+
+    RCLCPP_INFO(this->get_logger(), "✅ Executor thread stopped");
+}
+
 // ========================================================================================
 // Callbacks
 // ========================================================================================
@@ -675,6 +831,9 @@ void URRobotClient::ioStatesCallback(const ur_msgs::msg::IOStates::SharedPtr msg
 // ========================================================================================
 // Helper Functions
 // ========================================================================================
+/**
+ * @brief Update TCP pose from TF transform
+ */
 void URRobotClient::updateTcpPoseFromTf() {
     try {
         geometry_msgs::msg::TransformStamped transform_stamped;
@@ -706,6 +865,11 @@ void URRobotClient::updateTcpPoseFromTf() {
     }
 }
 
+/**
+ * @brief Convert ROS Transform to 4x4 transformation matrix
+ * @param transform ROS Transform message
+ * @return 4x4 transformation matrix (row-major)
+ */
 std::array<double, 16> URRobotClient::transformToMatrix(
     const geometry_msgs::msg::Transform& transform) {
     std::array<double, 16> matrix;
