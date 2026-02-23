@@ -225,7 +225,7 @@ MotionResult MoveItBackend::moveL(const std::array<double, 16>& T, double vel) {
     moveit_msgs::msg::RobotTrajectory trajectory;
 
     const double eef_step       = 0.001;
-    const double jump_threshold = 2.0;
+    const double jump_threshold = 5.0;
 
     double fraction = 0.0;
     fraction        = move_group_->computeCartesianPath(
