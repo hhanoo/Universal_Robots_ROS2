@@ -79,11 +79,11 @@ class URRobotClient : public rclcpp::Node {
     std::future<MotionResult> moveJ(
         const std::vector<double>& joints,
         double                     velocity = 0.5,
-        double                     timeout  = 30.0);
+        double                     timeout  = 60.0);
     std::future<MotionResult> moveL(
         const std::array<double, 16>& tmatrix,
         double                        velocity = 0.5,
-        double                        timeout  = 30.0);
+        double                        timeout  = 60.0);
     bool moveCancel();
 
     // ========================================================
