@@ -1,5 +1,6 @@
 #include "ur_robot_client/ur_robot_client.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <future>
 #include <thread>
@@ -155,15 +156,28 @@ std::array<double, 6> URRobotClient::getJointPositions() const {
         return std::array<double, 6>();
     }
 
-    if (latest_joint_state_->position.size() >= 6) {
-        std::array<double, 6> joints;
-        for (size_t i = 0; i < 6; ++i) {
-            joints[i] = latest_joint_state_->position[i];
-        }
-        return joints;
+    // Map by joint name to handle any publish order (e.g. alphabetical)
+    static const std::array<std::string, 6> expected_names = {
+        "shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
+        "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"
+    };
+
+    const auto& names = latest_joint_state_->name;
+    const auto& positions = latest_joint_state_->position;
+
+    if (names.size() < 6 || positions.size() < 6) {
+        return std::array<double, 6>();
     }
 
-    return std::array<double, 6>();
+    std::array<double, 6> joints{};
+    for (size_t i = 0; i < 6; ++i) {
+        auto it = std::find(names.begin(), names.end(), expected_names[i]);
+        if (it == names.end()) {
+            return std::array<double, 6>();
+        }
+        joints[i] = positions[std::distance(names.begin(), it)];
+    }
+    return joints;
 }
 
 /**
