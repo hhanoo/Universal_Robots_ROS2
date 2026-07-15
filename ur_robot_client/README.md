@@ -19,7 +19,7 @@ C++ 기반 UR 로봇 제어 클라이언트 라이브러리 및 예제
 - **이름**: `ur_robot_client`
 - **버전**: `1.0.0`
 - **빌드 타입**: `ament_cmake`
-- **라이선스**: BSD-3-Clause
+- **라이선스**: Apache-2.0
 - **Maintainer**: hhanoo (woo980711@gmail.com)
 
 ---
@@ -526,7 +526,7 @@ MoveL failed
 
 ## 📄 라이선스
 
-BSD-3-Clause
+Apache-2.0
 
 ## 👥 Maintainer
 

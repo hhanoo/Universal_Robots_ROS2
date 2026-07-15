@@ -7,7 +7,8 @@
   
   <maintainer email="woo980711@gmail.com">hhanoo</maintainer>
 
-  <license>BSD-3-Clause</license>
+  <license>Apache-2.0</license>
+  <license>BSD-3-Clause</license> <!-- launch/ur_moveit.launch.py, launch_common.py (PickNik, Inc. 파생) -->
 
   <!-- ========================================================= -->
   <!-- Build tool dependencies (빌드 시스템 의존성) -->

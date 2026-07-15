@@ -26,7 +26,7 @@ Python 기반 UR 로봇 제어 라이브러리 (`URRobotClient` 클래스)
 - **이름**: `ur_robot_client_py`
 - **버전**: `1.0.0`
 - **빌드 타입**: `ament_python`
-- **라이선스**: BSD-3-Clause
+- **라이선스**: Apache-2.0
 - **Maintainer**: hhanoo (woo980711@gmail.com)
 
 ---
@@ -920,7 +920,7 @@ robot.set_speed_slider(1.0, wait=False)  # ← Non-blocking!
 
 ## 📄 라이선스
 
-BSD-3-Clause
+Apache-2.0
 
 ## 👥 Maintainer
 

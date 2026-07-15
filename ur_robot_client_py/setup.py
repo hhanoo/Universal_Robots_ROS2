@@ -34,7 +34,7 @@ setup(
     maintainer="hhanoo",
     maintainer_email="woo980711@gmail.com",
     description="Python client library and examples for UR robot control (MoveJ, MoveL, I/O, Speed)",
-    license="BSD-3-Clause",
+    license="Apache-2.0",
     # =========================================================
     # Extra dependencies (for testing, etc.)
     # =========================================================
