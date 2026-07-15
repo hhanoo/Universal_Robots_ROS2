@@ -10,6 +10,14 @@ using namespace std::chrono_literals;
 URRobotClient::URRobotClient()
     : Node("ur_robot_client"),
       executor_running_(false),
+      program_running_(false),
+      program_state_received_(false),
+      control_lost_logged_(false),
+      resend_in_flight_(false),
+      robot_mode_(ur_dashboard_msgs::msg::RobotMode::DISCONNECTED),
+      safety_mode_(0),
+      last_resend_time_(0, 0, RCL_STEADY_TIME),
+      resend_sent_time_(0, 0, RCL_STEADY_TIME),
       connected_(false),
       last_joint_state_time_(rclcpp::Clock().now()),
       speed_slider_(1.0),
@@ -48,6 +56,35 @@ URRobotClient::URRobotClient()
         "/io_and_status_controller/io_states",
         10,
         std::bind(&URRobotClient::ioStatesCallback, this, std::placeholders::_1));
+
+    // Initialize Program Watchdog
+    // Driver publishes these as latched (transient_local) and only on change,
+    // so the subscription QoS must match to receive the last value.
+    auto latched_qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local();
+
+    program_running_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        "/io_and_status_controller/robot_program_running",
+        latched_qos,
+        std::bind(&URRobotClient::programRunningCallback, this, std::placeholders::_1));
+
+    robot_mode_sub_ = this->create_subscription<ur_dashboard_msgs::msg::RobotMode>(
+        "/io_and_status_controller/robot_mode",
+        latched_qos,
+        std::bind(&URRobotClient::robotModeCallback, this, std::placeholders::_1));
+
+    safety_mode_sub_ = this->create_subscription<ur_dashboard_msgs::msg::SafetyMode>(
+        "/io_and_status_controller/safety_mode",
+        latched_qos,
+        std::bind(&URRobotClient::safetyModeCallback, this, std::placeholders::_1));
+
+    resend_program_client_ = this->create_client<std_srvs::srv::Trigger>(
+        "/io_and_status_controller/resend_robot_program");
+    remote_control_client_ = this->create_client<ur_dashboard_msgs::srv::IsInRemoteControl>(
+        "/dashboard_client/is_in_remote_control");
+
+    watchdog_timer_ = this->create_wall_timer(
+        500ms,
+        std::bind(&URRobotClient::autoRegainControl, this));
 
     // Initialize TF
     tf_buffer_   = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -142,6 +179,17 @@ bool URRobotClient::isTcpPoseAvailable() const {
 }
 
 /**
+ * @brief Check if the robot program (external control) is running
+ * @return true if the driver reports the program as running
+ *
+ * Note: false means the driver lost control (e-stop, Local mode, ...)
+ *       and the watchdog is trying to regain it automatically.
+ */
+bool URRobotClient::isProgramRunning() const {
+    return program_running_;
+}
+
+/**
  * @brief Get latest joint positions
  * @return 6 joint positions in radians
  */
@@ -159,10 +207,9 @@ std::array<double, 6> URRobotClient::getJointPositions() const {
     // Map by joint name to handle any publish order (e.g. alphabetical)
     static const std::array<std::string, 6> expected_names = {
         "shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
-        "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"
-    };
+        "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"};
 
-    const auto& names = latest_joint_state_->name;
+    const auto& names     = latest_joint_state_->name;
     const auto& positions = latest_joint_state_->position;
 
     if (names.size() < 6 || positions.size() < 6) {
@@ -840,6 +887,169 @@ void URRobotClient::ioStatesCallback(const ur_msgs::msg::IOStates::SharedPtr msg
                     msg->digital_in_states.size(), msg->digital_out_states.size());
         io_ready_ = true;
     }
+}
+
+void URRobotClient::programRunningCallback(const std_msgs::msg::Bool::SharedPtr msg) {
+    if (!msg) {
+        return;
+    }
+
+    program_running_        = msg->data;
+    program_state_received_ = true;
+
+    if (msg->data) {
+        if (control_lost_logged_.exchange(false)) {
+            RCLCPP_INFO(this->get_logger(), "✅ Robot program running - control regained");
+        }
+    } else {
+        if (!control_lost_logged_.exchange(true)) {
+            RCLCPP_WARN(this->get_logger(),
+                        "⚠️ Robot program stopped - control lost, auto-regain armed "
+                        "(robot_mode: %d, safety_mode: %u)",
+                        static_cast<int>(robot_mode_.load()),
+                        static_cast<unsigned>(safety_mode_.load()));
+        }
+    }
+}
+
+void URRobotClient::robotModeCallback(const ur_dashboard_msgs::msg::RobotMode::SharedPtr msg) {
+    if (!msg) {
+        return;
+    }
+
+    int8_t prev = robot_mode_.exchange(msg->mode);
+    if (prev == msg->mode) {
+        return;
+    }
+
+    if (msg->mode == ur_dashboard_msgs::msg::RobotMode::RUNNING) {
+        RCLCPP_INFO(this->get_logger(), "🤖 Robot mode: RUNNING (%d -> %d)",
+                    static_cast<int>(prev), static_cast<int>(msg->mode));
+    } else {
+        RCLCPP_WARN(this->get_logger(), "🤖 Robot mode changed: %d -> %d",
+                    static_cast<int>(prev), static_cast<int>(msg->mode));
+    }
+}
+
+void URRobotClient::safetyModeCallback(const ur_dashboard_msgs::msg::SafetyMode::SharedPtr msg) {
+    if (!msg) {
+        return;
+    }
+
+    uint8_t prev = safety_mode_.exchange(msg->mode);
+    if (prev == msg->mode) {
+        return;
+    }
+
+    if (msg->mode == ur_dashboard_msgs::msg::SafetyMode::NORMAL) {
+        RCLCPP_INFO(this->get_logger(), "🛡️ Safety mode: NORMAL (%u -> %u)",
+                    static_cast<unsigned>(prev), static_cast<unsigned>(msg->mode));
+    } else {
+        RCLCPP_WARN(this->get_logger(), "🛡️ Safety mode changed: %u -> %u",
+                    static_cast<unsigned>(prev), static_cast<unsigned>(msg->mode));
+    }
+}
+
+/**
+ * @brief Watchdog tick (500ms): regain control after the operator recovers the robot
+ *
+ * Resends the external control program when it stopped (e-stop, Local mode, ...)
+ * and the robot is physically ready again (RUNNING + NORMAL). Physical recovery
+ * (releasing e-stop, power/brake, switching to Remote) is the operator's job -
+ * this never calls unlock_protective_stop/restart_safety/power_on/brake_release.
+ */
+void URRobotClient::autoRegainControl() {
+    // Armed only after the first program state message (stays dormant on fake HW)
+    if (!program_state_received_ || program_running_) {
+        return;
+    }
+
+    // Wait until the operator finished physical recovery
+    if (robot_mode_ != ur_dashboard_msgs::msg::RobotMode::RUNNING ||
+        safety_mode_ != ur_dashboard_msgs::msg::SafetyMode::NORMAL) {
+        return;
+    }
+
+    auto now = steady_clock_.now();
+
+    // Drop a stuck in-flight request (e.g. driver restarted mid-call)
+    if (resend_in_flight_) {
+        if ((now - resend_sent_time_).seconds() > 10.0) {
+            RCLCPP_WARN(this->get_logger(),
+                        "⚠️ resend_robot_program response timed out - resetting");
+            resend_program_client_->prune_pending_requests();
+            resend_in_flight_ = false;
+        } else {
+            return;
+        }
+    }
+
+    // Throttle: one resend attempt per 3 seconds
+    if ((now - last_resend_time_).seconds() < 3.0) {
+        return;
+    }
+
+    if (!resend_program_client_->service_is_ready()) {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), steady_clock_, 10000,
+                             "⚠️ resend_robot_program service not available");
+        return;
+    }
+
+    last_resend_time_ = now;
+    resend_sent_time_ = now;
+    resend_in_flight_ = true;
+
+    RCLCPP_INFO(this->get_logger(),
+                "🔄 Attempting to regain robot control (resend_robot_program)...");
+
+    auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+    resend_program_client_->async_send_request(
+        request,
+        [this](rclcpp::Client<std_srvs::srv::Trigger>::SharedFuture future) {
+            resend_in_flight_ = false;
+            try {
+                auto response = future.get();
+                // success only means the program was written to the socket;
+                // real confirmation is robot_program_running becoming true
+                if (!response->success) {
+                    RCLCPP_WARN(this->get_logger(),
+                                "❌ resend_robot_program failed - will retry");
+                }
+            } catch (const std::exception& e) {
+                RCLCPP_WARN(this->get_logger(),
+                            "❌ resend_robot_program exception: %s", e.what());
+            }
+        });
+
+    checkRemoteControl();
+}
+
+/**
+ * @brief Best-effort hint: warn if the pendant is in Local mode
+ *
+ * Local mode makes resend_robot_program "succeed" without the program actually
+ * running. The dashboard service only exists on real hardware, so this silently
+ * skips on fake HW.
+ */
+void URRobotClient::checkRemoteControl() {
+    if (!remote_control_client_->service_is_ready()) {
+        return;
+    }
+
+    auto request = std::make_shared<ur_dashboard_msgs::srv::IsInRemoteControl::Request>();
+    remote_control_client_->async_send_request(
+        request,
+        [this](rclcpp::Client<ur_dashboard_msgs::srv::IsInRemoteControl>::SharedFuture future) {
+            try {
+                auto response = future.get();
+                if (response->success && !response->remote_control) {
+                    RCLCPP_WARN(this->get_logger(),
+                                "⚠️ Pendant is in LOCAL mode - switch to Remote to regain control");
+                }
+            } catch (const std::exception&) {
+                // Best-effort only
+            }
+        });
 }
 
 // ========================================================================================

@@ -25,10 +25,12 @@ find_package(ur_motion REQUIRED)
 
 # * UR-specific messages and services
 find_package(ur_msgs REQUIRED)
+find_package(ur_dashboard_msgs REQUIRED)
 
 # * Common message types (기본 메시지 타입)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 # * TF2 for TCP pose tracking
@@ -53,8 +55,10 @@ ament_target_dependencies(${PROJECT_NAME}_lib
   rclcpp_action
   ur_motion
   ur_msgs
+  ur_dashboard_msgs
   sensor_msgs
   std_msgs
+  std_srvs
   geometry_msgs
   tf2_ros
 )
@@ -117,8 +121,10 @@ ament_export_dependencies(
   rclcpp_action
   ur_motion
   ur_msgs
+  ur_dashboard_msgs
   sensor_msgs
   std_msgs
+  std_srvs
   geometry_msgs
   tf2_ros
 )

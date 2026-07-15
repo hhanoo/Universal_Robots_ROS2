@@ -26,10 +26,12 @@
   
   <!-- * UR-specific messages and services (UR 전용 메시지 및 서비스) -->
   <depend>ur_msgs</depend>
-  
+  <depend>ur_dashboard_msgs</depend>
+
   <!-- * Common message types (기본 메시지 타입) -->
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
   <depend>geometry_msgs</depend>
 
   <!-- * TF2 for TCP pose tracking -->

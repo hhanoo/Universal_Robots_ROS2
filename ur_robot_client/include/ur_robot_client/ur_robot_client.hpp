@@ -5,13 +5,18 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <std_srvs/srv/trigger.hpp>
 
 // TF2 for TCP pose tracking
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
 // UR-specific messages and services
+#include "ur_dashboard_msgs/msg/robot_mode.hpp"
+#include "ur_dashboard_msgs/msg/safety_mode.hpp"
+#include "ur_dashboard_msgs/srv/is_in_remote_control.hpp"
 #include "ur_msgs/msg/io_states.hpp"
 #include "ur_msgs/srv/set_io.hpp"
 #include "ur_msgs/srv/set_speed_slider_fraction.hpp"
@@ -63,6 +68,7 @@ class URRobotClient : public rclcpp::Node {
     // State Monitoring
     // ========================================================
     bool isTcpPoseAvailable() const;
+    bool isProgramRunning() const;
 
     std::array<double, 6>  getJointPositions() const;
     std::array<double, 16> getTcpPose() const;
@@ -130,6 +136,25 @@ class URRobotClient : public rclcpp::Node {
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr       speed_scaling_sub_;
     rclcpp::Subscription<ur_msgs::msg::IOStates>::SharedPtr       io_states_sub_;
 
+    // * Program watchdog (auto-regain control after e-stop / Local mode)
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr                 program_running_sub_;
+    rclcpp::Subscription<ur_dashboard_msgs::msg::RobotMode>::SharedPtr   robot_mode_sub_;
+    rclcpp::Subscription<ur_dashboard_msgs::msg::SafetyMode>::SharedPtr  safety_mode_sub_;
+    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr                    resend_program_client_;
+    rclcpp::Client<ur_dashboard_msgs::srv::IsInRemoteControl>::SharedPtr remote_control_client_;
+    rclcpp::TimerBase::SharedPtr                                         watchdog_timer_;
+
+    std::atomic<bool>    program_running_;         // Latest robot_program_running value
+    std::atomic<bool>    program_state_received_;  // Watchdog armed only after first message
+    std::atomic<bool>    control_lost_logged_;     // Pairs "control lost" / "control regained" logs
+    std::atomic<bool>    resend_in_flight_;        // A resend request is awaiting response
+    std::atomic<int8_t>  robot_mode_;              // ur_dashboard_msgs::msg::RobotMode
+    std::atomic<uint8_t> safety_mode_;             // ur_dashboard_msgs::msg::SafetyMode
+
+    rclcpp::Clock steady_clock_{RCL_STEADY_TIME};
+    rclcpp::Time  last_resend_time_;  // Throttle: one resend per 3 seconds
+    rclcpp::Time  resend_sent_time_;  // In-flight timeout tracking
+
     // * TF
     std::shared_ptr<tf2_ros::Buffer>            tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -167,6 +192,11 @@ class URRobotClient : public rclcpp::Node {
     void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg);
     void speedScalingCallback(const std_msgs::msg::Float64::SharedPtr msg);
     void ioStatesCallback(const ur_msgs::msg::IOStates::SharedPtr msg);
+    void programRunningCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void robotModeCallback(const ur_dashboard_msgs::msg::RobotMode::SharedPtr msg);
+    void safetyModeCallback(const ur_dashboard_msgs::msg::SafetyMode::SharedPtr msg);
+    void autoRegainControl();
+    void checkRemoteControl();
 
     // ========================================================
     // Helper Functions
