@@ -1,51 +1,55 @@
+# System
+.DS_Store
+Thumbs.db
+
 # IDEs
 .idea/
 .vscode/
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-
-# C++
-build/
-.clang-format
 *.pro.user
+
+# Environment
+.env
+*.env
 
 # Virtual environment
 .venv/
 venv/
 
-# Environment
-.env
-*.env
-config.ini
-
-# Log
-logs/
-
-# System
-.DS_Store
-Thumbs.db
-
-# Backup files
-*.*.backup
-*_backup.txt
-
-# uv
+# Python
+__pycache__/
+*.py[cod]
 *.pyc
+*$py.class
+*.egg-info/
 .python-version
+
+# C++
+.clang-format
+.clangd
+.cache/
 
 # ROS2
 build/
 install/
 log/
 
-# open62541
+# Docker
+docker/config.sh
+
+# Backup
+*.*.backup
+*_backup.txt
+
+# Prettier
+.prettierignore
+
+# Open62541
 open62541/
 libopen62541.a
 libopen62541.so*
+
+# Claude
+CLAUDE.md
 
 # ROS2 description wrapper
 ur_description_wrapper/config
