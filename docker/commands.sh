@@ -102,6 +102,11 @@ example-complete() {
     ros2 run ur_robot_client example_complete "$@"
 }
 
+example-state() {
+    source-ros-ws
+    ros2 run ur_robot_client example_state "$@"
+}
+
 # ===== Help =====
 cmd-help() {
     printf "\n[Universal_Robots_ROS2] Commands:\n\n"
@@ -133,6 +138,7 @@ cmd-help() {
     printf "    %-18s - %s\n" "example-movej"    "MoveJ motion example"
     printf "    %-18s - %s\n" "example-io"       "Digital I/O + speed slider example"
     printf "    %-18s - %s\n" "example-complete" "Pick & Place full example"
+    printf "    %-18s - %s\n" "example-state"    "Read-only state monitoring"
     printf "\n"
 
     printf "  Config / Help:\n"

@@ -52,6 +52,8 @@ setup(
             "example_io_speed = ur_robot_client_py.example_io_speed:main",
             # ros2 run ur_robot_client_py example_complete
             "example_complete = ur_robot_client_py.example_complete:main",
+            # ros2 run ur_robot_client_py example_state
+            "example_state = ur_robot_client_py.example_state:main",
         ],
     },
 )

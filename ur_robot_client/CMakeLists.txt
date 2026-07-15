@@ -90,6 +90,14 @@ ament_target_dependencies(example_complete
   rclcpp
 )
 
+# Example 4: Read-only state monitoring
+# 예제 4: 읽기 전용 상태 모니터링
+add_executable(example_state src/example_state.cpp)
+target_link_libraries(example_state ${PROJECT_NAME}_lib)
+ament_target_dependencies(example_state
+  rclcpp
+)
+
 # =========================================================
 # Install
 # =========================================================
@@ -100,6 +108,7 @@ install(
     example_movej
     example_io_speed
     example_complete
+    example_state
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
