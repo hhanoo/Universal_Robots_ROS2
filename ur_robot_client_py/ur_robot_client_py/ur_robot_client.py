@@ -23,6 +23,8 @@ from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Bool, Float64
 from tf2_ros import Buffer, TransformListener
+from ur_dashboard_msgs.msg import RobotMode, SafetyMode
+from ur_dashboard_msgs.srv import IsInRemoteControl
 from ur_msgs.msg import IOStates
 from ur_msgs.srv import SetIO, SetSpeedSliderFraction
 
@@ -105,6 +107,27 @@ class URRobotClient:
             self.program_running_callback,
             latched_qos,
         )
+        self.robot_mode_sub = self.node.create_subscription(
+            RobotMode,
+            "/io_and_status_controller/robot_mode",
+            self.robot_mode_callback,
+            latched_qos,
+        )
+        self.safety_mode_sub = self.node.create_subscription(
+            SafetyMode,
+            "/io_and_status_controller/safety_mode",
+            self.safety_mode_callback,
+            latched_qos,
+        )
+
+        # Remote/Local: no topic exists — poll the dashboard service every 5s
+        # and cache the result (stays unknown on fake hardware)
+        self.remote_control_client = self.node.create_client(
+            IsInRemoteControl, "/dashboard_client/is_in_remote_control"
+        )
+        self.remote_control_timer = self.node.create_timer(
+            5.0, self._poll_remote_control
+        )
 
         # TF
         self.tf_buffer = Buffer()
@@ -124,6 +147,10 @@ class URRobotClient:
 
         self.program_running = False  # Latest robot_program_running value
         self.program_state_received = False  # Not published on fake hardware
+
+        self.robot_mode = RobotMode.DISCONNECTED  # ur_dashboard_msgs RobotMode
+        self.safety_mode = 0  # ur_dashboard_msgs SafetyMode (0 = not received)
+        self.remote_control = -1  # 1=remote, 0=local, -1=unknown
 
         # Connection flags
         self.joint_state_ready = False
@@ -292,6 +319,38 @@ class URRobotClient:
             bool: True if the driver reports the program as running
         """
         return self.program_running
+
+    def get_robot_mode(self):
+        """
+        Get latest robot mode (ur_dashboard_msgs RobotMode constants).
+
+        Returns:
+            int: e.g. RUNNING(7), IDLE(5), POWER_OFF(3); DISCONNECTED(0) before first message
+        """
+        return self.robot_mode
+
+    def get_safety_mode(self):
+        """
+        Get latest safety mode (ur_dashboard_msgs SafetyMode constants).
+
+        Returns:
+            int: e.g. NORMAL(1), PROTECTIVE_STOP(3); 0 before first message
+        """
+        return self.safety_mode
+
+    def is_remote_control(self):
+        """
+        Check if the Teach Pendant is in Remote Control mode.
+
+        Note:
+            No topic exists for this — the value is cached from a periodic
+            (5s) dashboard service poll, so it may lag reality by a few
+            seconds. Stays -1 on fake hardware (no dashboard_client).
+
+        Returns:
+            int: 1 = remote, 0 = local, -1 = unknown
+        """
+        return self.remote_control
 
     # ========================================================
     # Motion Control
@@ -738,6 +797,59 @@ class URRobotClient:
             self.node.get_logger().info("✅ Robot program running - control regained")
         elif not msg.data and prev:
             self.node.get_logger().warn("⚠️ Robot program stopped - control lost")
+
+    def robot_mode_callback(self, msg):
+        """Callback for robot mode updates (log only on change)"""
+        prev = self.robot_mode
+        self.robot_mode = msg.mode
+        if prev != msg.mode:
+            if msg.mode == RobotMode.RUNNING:
+                self.node.get_logger().info(
+                    f"🤖 Robot mode: RUNNING ({prev} -> {msg.mode})"
+                )
+            else:
+                self.node.get_logger().warn(
+                    f"🤖 Robot mode changed: {prev} -> {msg.mode}"
+                )
+
+    def safety_mode_callback(self, msg):
+        """Callback for safety mode updates (log only on change)"""
+        prev = self.safety_mode
+        self.safety_mode = msg.mode
+        if prev != msg.mode:
+            if msg.mode == SafetyMode.NORMAL:
+                self.node.get_logger().info(
+                    f"🛡️ Safety mode: NORMAL ({prev} -> {msg.mode})"
+                )
+            else:
+                self.node.get_logger().warn(
+                    f"🛡️ Safety mode changed: {prev} -> {msg.mode}"
+                )
+
+    def _poll_remote_control(self):
+        """Poll dashboard is_in_remote_control and cache the result"""
+        if not self.remote_control_client.service_is_ready():
+            return
+        future = self.remote_control_client.call_async(IsInRemoteControl.Request())
+        future.add_done_callback(self._remote_control_response)
+
+    def _remote_control_response(self, future):
+        """Cache Remote/Local mode; log only on transition"""
+        try:
+            response = future.result()
+        except Exception:
+            return  # Best-effort only
+        if not response.success:
+            return
+
+        prev = self.remote_control
+        self.remote_control = 1 if response.remote_control else 0
+        if self.remote_control == 0 and prev != 0:
+            self.node.get_logger().warn(
+                "⚠️ Pendant is in LOCAL mode - switch to Remote to regain control"
+            )
+        elif self.remote_control == 1 and prev == 0:
+            self.node.get_logger().info("✅ Pendant switched to Remote control")
 
     # ========================================================
     # Internal Helper Methods

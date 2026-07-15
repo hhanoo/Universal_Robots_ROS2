@@ -20,6 +20,75 @@
 
 using namespace std::chrono_literals;
 
+namespace {
+
+const char* robotModeName(int8_t mode) {
+    using ur_dashboard_msgs::msg::RobotMode;
+    switch (mode) {
+        case RobotMode::NO_CONTROLLER:
+            return "NO_CONTROLLER";
+        case RobotMode::DISCONNECTED:
+            return "DISCONNECTED";
+        case RobotMode::CONFIRM_SAFETY:
+            return "CONFIRM_SAFETY";
+        case RobotMode::BOOTING:
+            return "BOOTING";
+        case RobotMode::POWER_OFF:
+            return "POWER_OFF";
+        case RobotMode::POWER_ON:
+            return "POWER_ON";
+        case RobotMode::IDLE:
+            return "IDLE";
+        case RobotMode::BACKDRIVE:
+            return "BACKDRIVE";
+        case RobotMode::RUNNING:
+            return "RUNNING";
+        case RobotMode::UPDATING_FIRMWARE:
+            return "UPDATING_FIRMWARE";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+const char* safetyModeName(uint8_t mode) {
+    using ur_dashboard_msgs::msg::SafetyMode;
+    switch (mode) {
+        case SafetyMode::NORMAL:
+            return "NORMAL";
+        case SafetyMode::REDUCED:
+            return "REDUCED";
+        case SafetyMode::PROTECTIVE_STOP:
+            return "PROTECTIVE_STOP";
+        case SafetyMode::RECOVERY:
+            return "RECOVERY";
+        case SafetyMode::SAFEGUARD_STOP:
+            return "SAFEGUARD_STOP";
+        case SafetyMode::SYSTEM_EMERGENCY_STOP:
+            return "SYSTEM_EMERGENCY_STOP";
+        case SafetyMode::ROBOT_EMERGENCY_STOP:
+            return "ROBOT_EMERGENCY_STOP";
+        case SafetyMode::VIOLATION:
+            return "VIOLATION";
+        case SafetyMode::FAULT:
+            return "FAULT";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+const char* pendantModeName(int remote_control) {
+    switch (remote_control) {
+        case 1:
+            return "Remote control";
+        case 0:
+            return "LOCAL mode (external control blocked)";
+        default:
+            return "unknown (no dashboard)";
+    }
+}
+
+}  // namespace
+
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
@@ -86,6 +155,16 @@ int main(int argc, char** argv) {
                     "Program     : %s",
                     client->isProgramRunning() ? "RUNNING (control OK)"
                                                : "STOPPED (control lost)");
+
+        // Robot / safety mode (latched topics; stays DISCONNECTED on fake HW)
+        RCLCPP_INFO(client->get_logger(),
+                    "Mode        : robot=%s, safety=%s",
+                    robotModeName(client->getRobotMode()),
+                    safetyModeName(client->getSafetyMode()));
+
+        // Pendant Remote/Local (5s dashboard poll; unknown on fake HW)
+        RCLCPP_INFO(client->get_logger(),
+                    "Pendant     : %s", pendantModeName(client->isRemoteControl()));
 
         RCLCPP_INFO(client->get_logger(), "----------------------------------------");
         std::this_thread::sleep_for(1s);

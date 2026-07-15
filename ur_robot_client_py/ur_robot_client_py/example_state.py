@@ -21,6 +21,38 @@ from rclpy.node import Node
 
 from ur_robot_client_py import URRobotClient
 
+# ur_dashboard_msgs RobotMode / SafetyMode constants → display names
+ROBOT_MODE_NAMES = {
+    -1: "NO_CONTROLLER",
+    0: "DISCONNECTED",
+    1: "CONFIRM_SAFETY",
+    2: "BOOTING",
+    3: "POWER_OFF",
+    4: "POWER_ON",
+    5: "IDLE",
+    6: "BACKDRIVE",
+    7: "RUNNING",
+    8: "UPDATING_FIRMWARE",
+}
+
+SAFETY_MODE_NAMES = {
+    1: "NORMAL",
+    2: "REDUCED",
+    3: "PROTECTIVE_STOP",
+    4: "RECOVERY",
+    5: "SAFEGUARD_STOP",
+    6: "SYSTEM_EMERGENCY_STOP",
+    7: "ROBOT_EMERGENCY_STOP",
+    8: "VIOLATION",
+    9: "FAULT",
+}
+
+PENDANT_MODE_NAMES = {
+    1: "Remote control",
+    0: "LOCAL mode (external control blocked)",
+    -1: "unknown (no dashboard)",
+}
+
 
 async def spin_node(node):
     """Spin ROS node in async loop"""
@@ -98,6 +130,17 @@ async def main_async():
         else:
             state = "STOPPED (control lost)"
         node.get_logger().info(f"Program     : {state}")
+
+        # Robot / safety mode (latched topics; stays DISCONNECTED on fake HW)
+        robot_mode = ROBOT_MODE_NAMES.get(robot.get_robot_mode(), "UNKNOWN")
+        safety_mode = SAFETY_MODE_NAMES.get(robot.get_safety_mode(), "UNKNOWN")
+        node.get_logger().info(
+            f"Mode        : robot={robot_mode}, safety={safety_mode}"
+        )
+
+        # Pendant Remote/Local (5s dashboard poll; unknown on fake HW)
+        pendant = PENDANT_MODE_NAMES.get(robot.is_remote_control(), "unknown")
+        node.get_logger().info(f"Pendant     : {pendant}")
 
         node.get_logger().info("-" * 40)
         await asyncio.sleep(1.0)

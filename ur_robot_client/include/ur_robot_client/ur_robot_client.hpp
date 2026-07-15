@@ -69,6 +69,10 @@ class URRobotClient : public rclcpp::Node {
     // ========================================================
     bool isTcpPoseAvailable() const;
     bool isProgramRunning() const;
+    int  isRemoteControl() const;  // 1=remote, 0=local, -1=unknown
+
+    int8_t  getRobotMode() const;   // ur_dashboard_msgs::msg::RobotMode 상수
+    uint8_t getSafetyMode() const;  // ur_dashboard_msgs::msg::SafetyMode 상수
 
     std::array<double, 6>  getJointPositions() const;
     std::array<double, 16> getTcpPose() const;
@@ -150,6 +154,8 @@ class URRobotClient : public rclcpp::Node {
     std::atomic<bool>    resend_in_flight_;        // A resend request is awaiting response
     std::atomic<int8_t>  robot_mode_;              // ur_dashboard_msgs::msg::RobotMode
     std::atomic<uint8_t> safety_mode_;             // ur_dashboard_msgs::msg::SafetyMode
+    std::atomic<int8_t>  remote_control_{-1};      // 1=remote, 0=local, -1=unknown
+    unsigned             watchdog_tick_{0};        // Remote 폴링 주기 계산용 (5s)
 
     rclcpp::Clock steady_clock_{RCL_STEADY_TIME};
     rclcpp::Time  last_resend_time_;  // Throttle: one resend per 3 seconds

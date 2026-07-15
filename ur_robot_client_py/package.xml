@@ -20,6 +20,7 @@
   
   <!-- * UR-specific messages and services -->
   <depend>ur_msgs</depend>
+  <depend>ur_dashboard_msgs</depend>
   
   <!-- * Common message types -->
   <depend>sensor_msgs</depend>

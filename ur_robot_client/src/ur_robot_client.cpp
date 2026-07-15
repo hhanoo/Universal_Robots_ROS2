@@ -190,6 +190,34 @@ bool URRobotClient::isProgramRunning() const {
 }
 
 /**
+ * @brief Check if the Teach Pendant is in Remote Control mode
+ * @return 1 = remote, 0 = local, -1 = unknown (dashboard not available yet)
+ *
+ * Note: There is no topic for this — the value is cached from a periodic
+ *       (5s) dashboard service poll, so it may lag reality by a few seconds.
+ *       Stays -1 on fake hardware (no dashboard_client).
+ */
+int URRobotClient::isRemoteControl() const {
+    return remote_control_;
+}
+
+/**
+ * @brief Get latest robot mode (ur_dashboard_msgs::msg::RobotMode constants)
+ * @return e.g. RUNNING(7), IDLE(5), POWER_OFF(3); DISCONNECTED(0) before first message
+ */
+int8_t URRobotClient::getRobotMode() const {
+    return robot_mode_;
+}
+
+/**
+ * @brief Get latest safety mode (ur_dashboard_msgs::msg::SafetyMode constants)
+ * @return e.g. NORMAL(1), PROTECTIVE_STOP(3); 0 before first message
+ */
+uint8_t URRobotClient::getSafetyMode() const {
+    return safety_mode_;
+}
+
+/**
  * @brief Get latest joint positions
  * @return 6 joint positions in radians
  */
@@ -960,6 +988,12 @@ void URRobotClient::safetyModeCallback(const ur_dashboard_msgs::msg::SafetyMode:
  * this never calls unlock_protective_stop/restart_safety/power_on/brake_release.
  */
 void URRobotClient::autoRegainControl() {
+    // Periodic Remote/Local poll for state queries (every 10 ticks = 5s).
+    // Runs regardless of program state so isRemoteControl() stays fresh.
+    if (watchdog_tick_++ % 10 == 0) {
+        checkRemoteControl();
+    }
+
     // Armed only after the first program state message (stays dormant on fake HW)
     if (!program_state_received_ || program_running_) {
         return;
@@ -1026,11 +1060,11 @@ void URRobotClient::autoRegainControl() {
 }
 
 /**
- * @brief Best-effort hint: warn if the pendant is in Local mode
+ * @brief Poll the pendant Remote/Local mode and cache it (isRemoteControl())
  *
  * Local mode makes resend_robot_program "succeed" without the program actually
- * running. The dashboard service only exists on real hardware, so this silently
- * skips on fake HW.
+ * running, so transitions are logged. The dashboard service only exists on
+ * real hardware — on fake HW this silently skips and the cache stays unknown.
  */
 void URRobotClient::checkRemoteControl() {
     if (!remote_control_client_->service_is_ready()) {
@@ -1043,9 +1077,17 @@ void URRobotClient::checkRemoteControl() {
         [this](rclcpp::Client<ur_dashboard_msgs::srv::IsInRemoteControl>::SharedFuture future) {
             try {
                 auto response = future.get();
-                if (response->success && !response->remote_control) {
+                if (!response->success) {
+                    return;
+                }
+
+                // Cache + log only on transition
+                int8_t prev = remote_control_.exchange(response->remote_control ? 1 : 0);
+                if (!response->remote_control && prev != 0) {
                     RCLCPP_WARN(this->get_logger(),
                                 "⚠️ Pendant is in LOCAL mode - switch to Remote to regain control");
+                } else if (response->remote_control && prev == 0) {
+                    RCLCPP_INFO(this->get_logger(), "✅ Pendant switched to Remote control");
                 }
             } catch (const std::exception&) {
                 // Best-effort only
