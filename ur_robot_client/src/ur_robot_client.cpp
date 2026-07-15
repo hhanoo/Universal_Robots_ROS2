@@ -859,7 +859,8 @@ void URRobotClient::speedScalingCallback(const std_msgs::msg::Float64::SharedPtr
         return;
     }
 
-    speed_scaling_ = msg->data;
+    // Topic publishes percent (0~100); store as fraction [0.0 ~ 1.0]
+    speed_scaling_ = msg->data / 100.0;
 
     if (!speed_ready_) {
         RCLCPP_INFO(this->get_logger(), "⚡ Speed scaling updates received: %.1f%%", msg->data);

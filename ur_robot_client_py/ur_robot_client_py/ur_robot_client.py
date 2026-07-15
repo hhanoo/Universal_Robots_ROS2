@@ -9,6 +9,7 @@ Features:
 - Digital I/O control
 - Robot state monitoring
 - TCP pose tracking via TF
+- Program (external control) state monitoring
 """
 
 import asyncio
@@ -17,13 +18,15 @@ import numpy as np
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64
+from std_msgs.msg import Bool, Float64
 from tf2_ros import Buffer, TransformListener
-from ur_motion.action import MoveJ, MoveL
 from ur_msgs.msg import IOStates
 from ur_msgs.srv import SetIO, SetSpeedSliderFraction
+
+from ur_motion.action import MoveJ, MoveL
 
 
 class URRobotClient:
@@ -87,6 +90,22 @@ class URRobotClient:
             IOStates, "/io_and_status_controller/io_states", self.io_states_callback, 10
         )
 
+        # Program state (external control)
+        # Driver publishes latched (transient_local) and only on change,
+        # so the subscription QoS must match to receive the last value.
+        latched_qos = QoSProfile(
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        self.program_running_sub = self.node.create_subscription(
+            Bool,
+            "/io_and_status_controller/robot_program_running",
+            self.program_running_callback,
+            latched_qos,
+        )
+
         # TF
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self.node)
@@ -102,6 +121,9 @@ class URRobotClient:
 
         self.tcp_pose_matrix = np.eye(4)  # 4x4 T-matrix (base -> tool0_controller)
         self.tcp_pose_available = False
+
+        self.program_running = False  # Latest robot_program_running value
+        self.program_state_received = False  # Not published on fake hardware
 
         # Connection flags
         self.joint_state_ready = False
@@ -179,12 +201,31 @@ class URRobotClient:
         Get latest joint positions
 
         Returns:
-            list: 6 joint positions in radians, or None if not available
+            list: 6 joint positions in radians (shoulder_pan → wrist_3 order),
+                  or None if not available
         """
-        if self.latest_joint_state and self.connected:
-            if len(self.latest_joint_state.position) >= 6:
-                return list(self.latest_joint_state.position[:6])
-        return None
+        if not (self.latest_joint_state and self.connected):
+            return None
+
+        # Map by joint name to handle any publish order (e.g. alphabetical),
+        # mirroring the C++ client
+        expected_names = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+        names = list(self.latest_joint_state.name)
+        positions = list(self.latest_joint_state.position)
+        if len(names) < 6 or len(positions) < 6:
+            return None
+
+        try:
+            return [positions[names.index(n)] for n in expected_names]
+        except ValueError:
+            return None
 
     def get_tcp_pose(self):
         """
@@ -237,6 +278,20 @@ class URRobotClient:
         if 0 <= pin < 18:
             return self.digital_out_states[pin]
         return False
+
+    def is_program_running(self):
+        """
+        Check if the robot program (external control) is running.
+
+        Note:
+            False means the driver lost control (e-stop, Local mode, ...).
+            On fake hardware this topic is not published, so the value
+            stays False (check program_state_received to distinguish).
+
+        Returns:
+            bool: True if the driver reports the program as running
+        """
+        return self.program_running
 
     # ========================================================
     # Motion Control
@@ -667,6 +722,22 @@ class URRobotClient:
 
         # Set io ready to True
         self.io_ready = True
+
+    def program_running_callback(self, msg):
+        """Callback for robot program (external control) state updates"""
+        prev = self.program_running
+        self.program_running = msg.data
+
+        # Log first reception, then only transitions
+        if not self.program_state_received:
+            self.program_state_received = True
+            self.node.get_logger().info(
+                f'🤖 Program state received: {"running" if msg.data else "stopped"}'
+            )
+        elif msg.data and not prev:
+            self.node.get_logger().info("✅ Robot program running - control regained")
+        elif not msg.data and prev:
+            self.node.get_logger().warn("⚠️ Robot program stopped - control lost")
 
     # ========================================================
     # Internal Helper Methods
