@@ -53,7 +53,7 @@ extract-calib() {
 run-ur() {
     source-ros-ws
     source-config
-    ros2 launch /ros2_ws/src/1_ur_driver.launch.py \
+    ros2 launch ur_robot_driver_wrapper bringup.launch.py \
         robot_ip:="${ROBOT_IP}" \
         ur_type:="${UR_TYPE}" \
         use_fake_hardware:="${USE_FAKE_HARDWARE}" \
@@ -63,15 +63,15 @@ run-ur() {
 run-moveit() {
     source-ros-ws
     source-config
-    ros2 launch /ros2_ws/src/2_ur_moveit.launch.py \
+    ros2 launch ur_moveit_config_wrapper ur_moveit.launch.py \
         ur_type:="${UR_TYPE}" \
-        launch_moveit_rviz:="${LAUNCH_RVIZ}" \
+        launch_rviz:="${LAUNCH_RVIZ}" \
         "$@"
 }
 
 run-motion() {
     source-ros-ws
-    ros2 launch /ros2_ws/src/3_motion_server.launch.py "$@"
+    ros2 run ur_motion motion_action_server "$@"
 }
 
 # ===== Combined =====
