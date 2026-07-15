@@ -1,0 +1,26 @@
+#!/bin/bash
+# Project docker config — copy to docker/config.sh (config.sh is git-ignored)
+# .vscode/clangd-docker.sh reads CONTAINER_NAME from this file.
+
+# Docker image name (used in build.sh and run.sh)
+IMAGE_NAME="universal-robots-ros2:latest"
+
+# Docker container name (used in run.sh)
+CONTAINER_NAME="universal-robots-ros2"
+
+# ROS 2 domain ID for network isolation (used in run.sh)
+ROS_DOMAIN_ID="98"
+
+# X11 .Xauthority path on host (used in run.sh)
+# - Mounted into container as /root/.Xauthority for RViz display.
+XAUTHORITY_PATH="$HOME/.Xauthority"
+
+# UR robot settings (used by `run-ur` / `run-moveit` / `run-all` inside container)
+# - ROBOT_IP: 127.0.0.1 (test/sim) or actual robot IP (e.g. 192.168.1.25)
+# - UR_TYPE: ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20, ur30
+# - USE_FAKE_HARDWARE: true for ros2_control fake hardware, false for real robot
+# - LAUNCH_RVIZ: true to launch MoveIt with RViz, false for headless
+ROBOT_IP="127.0.0.1"
+UR_TYPE="ur10e"
+USE_FAKE_HARDWARE="false"
+LAUNCH_RVIZ="true"
