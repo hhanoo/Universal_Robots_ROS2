@@ -56,21 +56,14 @@ std::array<double, 16> createTMatrix(double x, double y, double z,
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
+    // URRobotClient spins itself in a background executor thread,
+    // so no external executor is needed
     auto client = std::make_shared<URRobotClient>();
-
-    // Use executor to handle ROS2 spinning
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(client);
-
-    // Run executor in separate thread
-    std::thread spin_thread([&executor]() {
-        executor.spin();
-    });
 
     // Wait for robot connection
     RCLCPP_INFO(client->get_logger(), "Waiting for robot connection...");
 
-    // Manually check connection (executor is running)
+    // Manually check connection (client spins in background)
     auto start_time = std::chrono::steady_clock::now();
     while (rclcpp::ok()) {
         if (client->isConnected()) {
@@ -81,18 +74,14 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(100ms);
         if (elapsed > 10s) {
             RCLCPP_ERROR(client->get_logger(), "Failed to connect to robot (timeout)");
-            executor.cancel();
             rclcpp::shutdown();
-            spin_thread.join();
             return 1;
         }
     }
 
     if (!client->isConnected()) {
         RCLCPP_ERROR(client->get_logger(), "Failed to connect to robot");
-        executor.cancel();
         rclcpp::shutdown();
-        spin_thread.join();
         return 1;
     }
 
@@ -304,7 +293,6 @@ int main(int argc, char** argv) {
     RCLCPP_INFO(client->get_logger(), "  ✓ State monitoring");
 
     rclcpp::shutdown();
-    spin_thread.join();
 
     return 0;
 }
