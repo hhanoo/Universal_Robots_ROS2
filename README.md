@@ -450,6 +450,8 @@ run-all     # 통합 실행
 
 ### 3. Python 클라이언트 사용
 
+모션·서비스 API는 코루틴이라 `await`로 호출합니다 (스핀 루프 포함 전체 패턴은 [ur_robot_client_py/README.md](ur_robot_client_py/README.md) 참고).
+
 ```python
 import rclpy
 from rclpy.node import Node
@@ -457,18 +459,17 @@ from ur_robot_client_py import URRobotClient
 
 rclpy.init()
 node = Node('my_controller')
-robot = URRobotClient(node)
+robot = URRobotClient(node)  # Node 주입, 스핀은 호출자 책임
 
-# 연결 대기
-while rclpy.ok() and not robot.is_connected():
-    rclpy.spin_once(node, timeout_sec=0.1)
+# 상태 수신 준비 대기
+await robot.wait_robot_ready(timeout=10.0)
 
-# 관절 공간 모션
-robot.move_j([0.0, -1.57, 1.57, -1.57, -1.57, 0.0], velocity=0.5, wait=True)
+# 관절 공간 모션 — (success, message) 반환
+success, msg = await robot.move_j([0.0, -1.57, 1.57, -1.57, -1.57, 0.0], velocity=0.5)
 
 # 속도 및 I/O
-robot.set_speed_slider(0.5)
-robot.set_digital_out(0, True)
+await robot.set_speed_slider(0.5)
+await robot.set_digital_out(0, True)
 
 # TCP 포즈 (4x4 행렬)
 if robot.is_tcp_pose_available():
@@ -477,16 +478,20 @@ if robot.is_tcp_pose_available():
 
 ### 4. C++ 클라이언트 사용
 
+클라이언트가 자체 executor로 스핀하므로 생성만 하면 되고, 모션 API는 `std::future`를 반환합니다 (전체 패턴은 [ur_robot_client/README.md](ur_robot_client/README.md) 참고).
+
 ```cpp
 #include "ur_robot_client/ur_robot_client.hpp"
 
+// 생성만 하면 자체 executor 스레드가 스핀 — 외부 spin 금지
 auto client = std::make_shared<URRobotClient>();
 client->waitRobotReady(5.0);
 
 std::vector<double> home = {0.0, -1.57, 1.57, -1.57, -1.57, 0.0};
-client->moveJ(home, 0.5);          // velocity=0.5
-client->setSpeedSlider(0.5);
-client->setDigitalOut(0, true);
+auto result = client->moveJ(home, 0.5).get();  // .get() = 완료 대기
+
+client->setSpeedSlider(0.5).get();
+client->setDigitalOut(0, true).get();
 ```
 
 자세한 API는 [ur_robot_client/README.md](ur_robot_client/README.md), [ur_robot_client_py/README.md](ur_robot_client_py/README.md)를 참고하세요.
