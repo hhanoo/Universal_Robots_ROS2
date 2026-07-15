@@ -371,16 +371,16 @@ ros2 run ur_motion motion_action_server
 
 ```bash
 # C++ 예제
-ros2 run ur_robot_client example_movej      # MoveJ 모션
-ros2 run ur_robot_client example_io_speed   # I/O + 속도 제어
-ros2 run ur_robot_client example_complete   # Pick & Place 통합
-ros2 run ur_robot_client example_state      # 읽기 전용 상태 모니터링
+ros2 run ur_robot_client example_state       # 1. 읽기 전용 상태 모니터링 (연결 점검)
+ros2 run ur_robot_client example_movej       # 2. MoveJ 모션
+ros2 run ur_robot_client example_io_speed    # 3. I/O + 속도 제어
+ros2 run ur_robot_client example_pick_place  # 4. Pick & Place 통합
 
 # Python 예제
+ros2 run ur_robot_client_py example_state
 ros2 run ur_robot_client_py example_movej
 ros2 run ur_robot_client_py example_io_speed
-ros2 run ur_robot_client_py example_complete
-ros2 run ur_robot_client_py example_state
+ros2 run ur_robot_client_py example_pick_place
 ```
 
 ### Docker 실행
@@ -401,22 +401,22 @@ run-all     # 통합 실행
 
 전체 command 정의는 [commands.sh](docker/commands.sh)를 참고하세요.
 
-| command            | 설명                                            | 참고                                                                       |
-| ------------------ | ----------------------------------------------- | -------------------------------------------------------------------------- |
-| `build`            | colcon Release 빌드 + overlay source            | —                                                                          |
-| `build-debug`      | 디버그 심볼 포함 빌드 (RelWithDebInfo)          | —                                                                          |
-| `debug-motion`     | motion_action_server를 gdbserver `:3000`로 실행 | —                                                                          |
-| `extract-calib`    | UR kinematics 캘리브레이션 추출 (`ROBOT_IP`)    | [extract_robot_calibration.sh](extract_robot_calibration.sh)               |
-| `run-ur`           | UR Driver 단독 실행                             | [bringup.launch.py](ur_robot_driver_wrapper/launch/bringup.launch.py)      |
-| `run-moveit`       | MoveIt 단독 실행                                | [ur_moveit.launch.py](ur_moveit_config_wrapper/launch/ur_moveit.launch.py) |
-| `run-motion`       | Motion Action Server 단독 실행                  | [motion_action_server.cpp](ur_motion/src/motion_action_server.cpp)         |
-| `run-all`          | Driver + MoveIt + Motion 통합 실행              | [all.launch.py](all.launch.py)                                             |
-| `example-movej`    | C++ MoveJ 예제 실행                             | [ur_robot_client/src](ur_robot_client/src/)                                |
-| `example-io`       | C++ I/O + 속도 제어 예제 실행                   | [ur_robot_client/src](ur_robot_client/src/)                                |
-| `example-complete` | C++ Pick & Place 통합 예제 실행                 | [ur_robot_client/src](ur_robot_client/src/)                                |
-| `example-state`    | C++ 읽기 전용 상태 모니터링 예제 실행           | [ur_robot_client/src](ur_robot_client/src/)                                |
-| `source-config`    | `docker/config.sh` 재로딩                       | [config.sh.example](docker/config.sh.example)                              |
-| `cmd-help`         | 명령어 목록 + 현재 config 값 출력               | —                                                                          |
+| command              | 설명                                            | 참고                                                                       |
+| -------------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `build`              | colcon Release 빌드 + overlay source            | —                                                                          |
+| `build-debug`        | 디버그 심볼 포함 빌드 (RelWithDebInfo)          | —                                                                          |
+| `debug-motion`       | motion_action_server를 gdbserver `:3000`로 실행 | —                                                                          |
+| `extract-calib`      | UR kinematics 캘리브레이션 추출 (`ROBOT_IP`)    | [extract_robot_calibration.sh](extract_robot_calibration.sh)               |
+| `run-ur`             | UR Driver 단독 실행                             | [bringup.launch.py](ur_robot_driver_wrapper/launch/bringup.launch.py)      |
+| `run-moveit`         | MoveIt 단독 실행                                | [ur_moveit.launch.py](ur_moveit_config_wrapper/launch/ur_moveit.launch.py) |
+| `run-motion`         | Motion Action Server 단독 실행                  | [motion_action_server.cpp](ur_motion/src/motion_action_server.cpp)         |
+| `run-all`            | Driver + MoveIt + Motion 통합 실행              | [all.launch.py](all.launch.py)                                             |
+| `example-state`      | 1. C++ 읽기 전용 상태 모니터링 (연결 점검)      | [ur_robot_client/src](ur_robot_client/src/)                                |
+| `example-movej`      | 2. C++ MoveJ 예제 실행                          | [ur_robot_client/src](ur_robot_client/src/)                                |
+| `example-io`         | 3. C++ I/O + 속도 제어 예제 실행                | [ur_robot_client/src](ur_robot_client/src/)                                |
+| `example-pick-place` | 4. C++ Pick & Place 통합 예제 실행              | [ur_robot_client/src](ur_robot_client/src/)                                |
+| `source-config`      | `docker/config.sh` 재로딩                       | [config.sh.example](docker/config.sh.example)                              |
+| `cmd-help`           | 명령어 목록 + 현재 config 값 출력               | —                                                                          |
 
 ---
 

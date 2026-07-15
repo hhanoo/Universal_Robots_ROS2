@@ -86,7 +86,12 @@ run-all() {
         "$@"
 }
 
-# ===== Examples =====
+# ===== Examples (단계 순서: 연결 점검 → 기본 모션 → I/O → 통합) =====
+example-state() {
+    source-ros-ws
+    ros2 run ur_robot_client example_state "$@"
+}
+
 example-movej() {
     source-ros-ws
     ros2 run ur_robot_client example_movej "$@"
@@ -97,14 +102,9 @@ example-io() {
     ros2 run ur_robot_client example_io_speed "$@"
 }
 
-example-complete() {
+example-pick-place() {
     source-ros-ws
-    ros2 run ur_robot_client example_complete "$@"
-}
-
-example-state() {
-    source-ros-ws
-    ros2 run ur_robot_client example_state "$@"
+    ros2 run ur_robot_client example_pick_place "$@"
 }
 
 # ===== Help =====
@@ -134,11 +134,11 @@ cmd-help() {
     printf "    %-18s - %s\n" "run-all"          "UR driver + MoveIt + Motion        [ROBOT_IP, UR_TYPE, USE_FAKE_HARDWARE, LAUNCH_RVIZ]"
     printf "\n"
 
-    printf "  Examples (ur_robot_client):\n"
-    printf "    %-18s - %s\n" "example-movej"    "MoveJ motion example"
-    printf "    %-18s - %s\n" "example-io"       "Digital I/O + speed slider example"
-    printf "    %-18s - %s\n" "example-complete" "Pick & Place full example"
-    printf "    %-18s - %s\n" "example-state"    "Read-only state monitoring"
+    printf "  Examples (ur_robot_client, 단계 순서):\n"
+    printf "    %-18s - %s\n" "example-state"      "1. Read-only state monitoring (연결 점검)"
+    printf "    %-18s - %s\n" "example-movej"      "2. MoveJ motion example"
+    printf "    %-18s - %s\n" "example-io"         "3. Digital I/O + speed slider example"
+    printf "    %-18s - %s\n" "example-pick-place" "4. Pick & Place full example"
     printf "\n"
 
     printf "  Config / Help:\n"

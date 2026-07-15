@@ -66,35 +66,35 @@ ament_target_dependencies(${PROJECT_NAME}_lib
 # =========================================================
 # Example executables (예제 실행 파일)
 # =========================================================
-# Example 1: MoveJ (joint space motion)
-# 예제 1: MoveJ (관절 공간 모션)
+# Example 1: Read-only state monitoring (connection check)
+# 예제 1: 읽기 전용 상태 모니터링 (연결 점검)
+add_executable(example_state src/example_state.cpp)
+target_link_libraries(example_state ${PROJECT_NAME}_lib)
+ament_target_dependencies(example_state
+  rclcpp
+)
+
+# Example 2: MoveJ (joint space motion)
+# 예제 2: MoveJ (관절 공간 모션)
 add_executable(example_movej src/example_movej.cpp)
 target_link_libraries(example_movej ${PROJECT_NAME}_lib)
 ament_target_dependencies(example_movej
   rclcpp
 )
 
-# Example 2: I/O and Speed control
-# 예제 2: I/O 및 속도 제어
+# Example 3: I/O and Speed control
+# 예제 3: I/O 및 속도 제어
 add_executable(example_io_speed src/example_io_speed.cpp)
 target_link_libraries(example_io_speed ${PROJECT_NAME}_lib)
 ament_target_dependencies(example_io_speed
   rclcpp
 )
 
-# Example 3: Complete Pick & Place scenario
-# 예제 3: 완전한 Pick & Place 시나리오
-add_executable(example_complete src/example_complete.cpp)
-target_link_libraries(example_complete ${PROJECT_NAME}_lib)
-ament_target_dependencies(example_complete
-  rclcpp
-)
-
-# Example 4: Read-only state monitoring
-# 예제 4: 읽기 전용 상태 모니터링
-add_executable(example_state src/example_state.cpp)
-target_link_libraries(example_state ${PROJECT_NAME}_lib)
-ament_target_dependencies(example_state
+# Example 4: Pick & Place scenario (all features)
+# 예제 4: Pick & Place 시나리오 (전체 기능)
+add_executable(example_pick_place src/example_pick_place.cpp)
+target_link_libraries(example_pick_place ${PROJECT_NAME}_lib)
+ament_target_dependencies(example_pick_place
   rclcpp
 )
 
@@ -105,10 +105,10 @@ ament_target_dependencies(example_state
 install(
   TARGETS
     ${PROJECT_NAME}_lib
+    example_state
     example_movej
     example_io_speed
-    example_complete
-    example_state
+    example_pick_place
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

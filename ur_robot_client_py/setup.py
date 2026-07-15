@@ -46,14 +46,14 @@ setup(
     # =========================================================
     entry_points={
         "console_scripts": [
+            # ros2 run ur_robot_client_py example_state
+            "example_state = ur_robot_client_py.example_state:main",
             # ros2 run ur_robot_client_py example_movej
             "example_movej = ur_robot_client_py.example_movej:main",
             # ros2 run ur_robot_client_py example_io_speed
             "example_io_speed = ur_robot_client_py.example_io_speed:main",
-            # ros2 run ur_robot_client_py example_complete
-            "example_complete = ur_robot_client_py.example_complete:main",
-            # ros2 run ur_robot_client_py example_state
-            "example_state = ur_robot_client_py.example_state:main",
+            # ros2 run ur_robot_client_py example_pick_place
+            "example_pick_place = ur_robot_client_py.example_pick_place:main",
         ],
     },
 )

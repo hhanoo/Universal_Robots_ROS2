@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Complete Example (Python)
+Pick & Place Example (Python)
 ==========================
 Demonstrates all features:
 - MoveJ (joint space motion)
@@ -10,7 +10,7 @@ Demonstrates all features:
 - State monitoring
 
 Usage:
-    ros2 run ur_robot_client_py example_complete
+    ros2 run ur_robot_client_py example_pick_place
 """
 
 import asyncio
@@ -74,7 +74,7 @@ async def main_async():
     rclpy.init()
 
     # Create ROS2 node
-    node = Node("ur_control_example_complete")
+    node = Node("ur_control_example_pick_place")
 
     # Create robot controller
     robot = URRobotClient(node)
@@ -96,7 +96,7 @@ async def main_async():
     node.get_logger().info("✅ Robot connected and ready!")
     node.get_logger().info("")
     node.get_logger().info("=" * 60)
-    node.get_logger().info("  Complete UR Control Example (Python)")
+    node.get_logger().info("  Pick & Place Example (Python)")
     node.get_logger().info("=" * 60)
     node.get_logger().info("")
 
@@ -284,7 +284,7 @@ async def main_async():
 
     node.get_logger().info("")
     node.get_logger().info("=" * 60)
-    node.get_logger().info("  ✅ Complete Example Finished!")
+    node.get_logger().info("  ✅ Pick & Place Example Finished!")
     node.get_logger().info("=" * 60)
     node.get_logger().info("")
     node.get_logger().info("Demonstrated features:")

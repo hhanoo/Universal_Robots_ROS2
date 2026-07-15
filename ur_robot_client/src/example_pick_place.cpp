@@ -1,6 +1,6 @@
 /**
- * @file example_complete.cpp
- * @brief Complete example demonstrating all features
+ * @file example_pick_place.cpp
+ * @brief Pick & Place example demonstrating all features
  *
  * Demonstrates:
  *   - MoveJ (joint space motion)
@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     RCLCPP_INFO(client->get_logger(), "✅ Robot connected!");
     RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========================================");
-    RCLCPP_INFO(client->get_logger(), "  Complete UR Control Example");
+    RCLCPP_INFO(client->get_logger(), "  Pick & Place Example");
     RCLCPP_INFO(client->get_logger(), "========================================");
     RCLCPP_INFO(client->get_logger(), " ");
 
@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
 
     RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "========================================");
-    RCLCPP_INFO(client->get_logger(), "  ✅ Complete Example Finished!");
+    RCLCPP_INFO(client->get_logger(), "  ✅ Pick & Place Example Finished!");
     RCLCPP_INFO(client->get_logger(), "========================================");
     RCLCPP_INFO(client->get_logger(), " ");
     RCLCPP_INFO(client->get_logger(), "Demonstrated features:");
