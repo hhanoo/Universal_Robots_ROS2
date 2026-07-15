@@ -131,9 +131,6 @@ Universal Robots ROS2는 UR 협동로봇(ur3 ~ ur30)을 ROS2 환경에서 손쉽
 ```
 Universal_Robots_ROS2/
 ├── all.launch.py                                # 통합 실행 (Driver + MoveIt + Motion Server)
-├── 1_ur_driver.launch.py                        # UR Driver 단독 실행
-├── 2_ur_moveit.launch.py                        # MoveIt 단독 실행
-├── 3_motion_server.launch.py                    # Motion Action Server 단독 실행
 ├── common.launch.py                             # 공통 launch 인자 정의 (robot_ip, ur_type 등)
 ├── extract_robot_calibration.sh                 # 로봇 kinematics 캘리브레이션 추출
 │
@@ -360,14 +357,14 @@ ros2 launch src/Universal_Robots_ROS2/all.launch.py \
 
 ```bash
 # 터미널 1: UR Driver
-ros2 launch src/Universal_Robots_ROS2/1_ur_driver.launch.py \
+ros2 launch ur_robot_driver_wrapper bringup.launch.py \
     robot_ip:=192.168.1.25 ur_type:=ur10e use_fake_hardware:=false
 
 # 터미널 2: MoveIt
-ros2 launch src/Universal_Robots_ROS2/2_ur_moveit.launch.py ur_type:=ur10e
+ros2 launch ur_moveit_config_wrapper ur_moveit.launch.py ur_type:=ur10e
 
 # 터미널 3: Motion Action Server
-ros2 launch src/Universal_Robots_ROS2/3_motion_server.launch.py
+ros2 run ur_motion motion_action_server
 ```
 
 ### 예제 실행
@@ -404,22 +401,22 @@ run-all     # 통합 실행
 
 전체 command 정의는 [commands.sh](docker/commands.sh)를 참고하세요.
 
-| command            | 설명                                            | 참고                                                         |
-| ------------------ | ----------------------------------------------- | ------------------------------------------------------------ |
-| `build`            | colcon Release 빌드 + overlay source            | —                                                            |
-| `build-debug`      | 디버그 심볼 포함 빌드 (RelWithDebInfo)          | —                                                            |
-| `debug-motion`     | motion_action_server를 gdbserver `:3000`로 실행 | —                                                            |
-| `extract-calib`    | UR kinematics 캘리브레이션 추출 (`ROBOT_IP`)    | [extract_robot_calibration.sh](extract_robot_calibration.sh) |
-| `run-ur`           | UR Driver 단독 실행                             | [1_ur_driver.launch.py](1_ur_driver.launch.py)               |
-| `run-moveit`       | MoveIt 단독 실행                                | [2_ur_moveit.launch.py](2_ur_moveit.launch.py)               |
-| `run-motion`       | Motion Action Server 단독 실행                  | [3_motion_server.launch.py](3_motion_server.launch.py)       |
-| `run-all`          | Driver + MoveIt + Motion 통합 실행              | [all.launch.py](all.launch.py)                               |
-| `example-movej`    | C++ MoveJ 예제 실행                             | [ur_robot_client/src](ur_robot_client/src/)                  |
-| `example-io`       | C++ I/O + 속도 제어 예제 실행                   | [ur_robot_client/src](ur_robot_client/src/)                  |
-| `example-complete` | C++ Pick & Place 통합 예제 실행                 | [ur_robot_client/src](ur_robot_client/src/)                  |
-| `example-state`    | C++ 읽기 전용 상태 모니터링 예제 실행           | [ur_robot_client/src](ur_robot_client/src/)                  |
-| `source-config`    | `docker/config.sh` 재로딩                       | [config.sh.example](docker/config.sh.example)                |
-| `cmd-help`         | 명령어 목록 + 현재 config 값 출력               | —                                                            |
+| command            | 설명                                            | 참고                                                                       |
+| ------------------ | ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `build`            | colcon Release 빌드 + overlay source            | —                                                                          |
+| `build-debug`      | 디버그 심볼 포함 빌드 (RelWithDebInfo)          | —                                                                          |
+| `debug-motion`     | motion_action_server를 gdbserver `:3000`로 실행 | —                                                                          |
+| `extract-calib`    | UR kinematics 캘리브레이션 추출 (`ROBOT_IP`)    | [extract_robot_calibration.sh](extract_robot_calibration.sh)               |
+| `run-ur`           | UR Driver 단독 실행                             | [bringup.launch.py](ur_robot_driver_wrapper/launch/bringup.launch.py)      |
+| `run-moveit`       | MoveIt 단독 실행                                | [ur_moveit.launch.py](ur_moveit_config_wrapper/launch/ur_moveit.launch.py) |
+| `run-motion`       | Motion Action Server 단독 실행                  | [motion_action_server.cpp](ur_motion/src/motion_action_server.cpp)         |
+| `run-all`          | Driver + MoveIt + Motion 통합 실행              | [all.launch.py](all.launch.py)                                             |
+| `example-movej`    | C++ MoveJ 예제 실행                             | [ur_robot_client/src](ur_robot_client/src/)                                |
+| `example-io`       | C++ I/O + 속도 제어 예제 실행                   | [ur_robot_client/src](ur_robot_client/src/)                                |
+| `example-complete` | C++ Pick & Place 통합 예제 실행                 | [ur_robot_client/src](ur_robot_client/src/)                                |
+| `example-state`    | C++ 읽기 전용 상태 모니터링 예제 실행           | [ur_robot_client/src](ur_robot_client/src/)                                |
+| `source-config`    | `docker/config.sh` 재로딩                       | [config.sh.example](docker/config.sh.example)                              |
+| `cmd-help`         | 명령어 목록 + 현재 config 값 출력               | —                                                                          |
 
 ---
 
@@ -569,17 +566,19 @@ LAUNCH_RVIZ="true"
 
 ### URRobotClient 주요 API
 
-| 기능        | C++                                  | Python                            |
-| ----------- | ------------------------------------ | --------------------------------- |
-| 관절 모션   | `moveJ(joints, velocity)`            | `move_j(joints, velocity, wait)`  |
-| 직선 모션   | `moveL(tmatrix, velocity)`           | `move_l(tmatrix, velocity, wait)` |
-| 모션 취소   | `moveCancel()`                       | —                                 |
-| 속도 설정   | `setSpeedSlider(fraction)`           | `set_speed_slider(value, wait)`   |
-| 디지털 출력 | `setDigitalOut(pin, value)`          | `set_digital_out(pin, value)`     |
-| 관절 조회   | `getJointPositions()`                | `get_joint_positions()`           |
-| TCP 포즈    | `getTcpPose()`                       | `get_tcp_pose()`                  |
-| 연결 상태   | `isConnected()` / `waitRobotReady()` | `is_connected()`                  |
-| 제어권 상태 | `isProgramRunning()`                 | `is_program_running()`            |
+| 기능           | C++                                  | Python                                   |
+| -------------- | ------------------------------------ | ---------------------------------------- |
+| 관절 모션      | `moveJ(joints, velocity)`            | `move_j(joints, velocity, wait)`         |
+| 직선 모션      | `moveL(tmatrix, velocity)`           | `move_l(tmatrix, velocity, wait)`        |
+| 모션 취소      | `moveCancel()`                       | —                                        |
+| 속도 설정      | `setSpeedSlider(fraction)`           | `set_speed_slider(value, wait)`          |
+| 디지털 출력    | `setDigitalOut(pin, value)`          | `set_digital_out(pin, value)`            |
+| 관절 조회      | `getJointPositions()`                | `get_joint_positions()`                  |
+| TCP 포즈       | `getTcpPose()`                       | `get_tcp_pose()`                         |
+| 연결 상태      | `isConnected()` / `waitRobotReady()` | `is_connected()`                         |
+| 제어권 상태    | `isProgramRunning()`                 | `is_program_running()`                   |
+| 로봇/안전 모드 | `getRobotMode()` / `getSafetyMode()` | `get_robot_mode()` / `get_safety_mode()` |
+| Pendant 모드   | `isRemoteControl()`                  | `is_remote_control()`                    |
 
 ### 주요 Topics / Services (클라이언트가 사용)
 
@@ -626,7 +625,7 @@ MoveJ action server not available
 ros2 action list
 
 # 없으면 실행
-ros2 launch src/Universal_Robots_ROS2/3_motion_server.launch.py
+ros2 run ur_motion motion_action_server
 ```
 
 ### 2. 로봇 연결 실패
