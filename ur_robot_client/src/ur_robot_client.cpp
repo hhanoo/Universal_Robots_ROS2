@@ -996,6 +996,9 @@ void URRobotClient::safetyModeCallback(const ur_dashboard_msgs::msg::SafetyMode:
  * and the robot is physically ready again (RUNNING + NORMAL). Physical recovery
  * (releasing e-stop, power/brake, switching to Remote) is the operator's job -
  * this never calls unlock_protective_stop/restart_safety/power_on/brake_release.
+ * Pause-recovery is only confirmed once remote_control_ == 1 (Remote); a resend
+ * that "succeeds" while still in Local is a known false-positive, not proof the
+ * program resumed.
  */
 void URRobotClient::autoRegainControl() {
     // Periodic Remote/Local poll for state queries (every 10 ticks = 5s).
@@ -1062,9 +1065,12 @@ void URRobotClient::autoRegainControl() {
                 if (!response->success) {
                     RCLCPP_WARN(this->get_logger(),
                                 "❌ resend_robot_program failed - will retry");
-                } else {
+                } else if (remote_control_ == 1) {
                     program_maybe_paused_ = false;
                 }
+                // else: success reported but not confirmed Remote yet (Local resend
+                // "succeeds" without actually resuming the program) - keep
+                // program_maybe_paused_ armed and let the throttle retry.
             } catch (const std::exception& e) {
                 RCLCPP_WARN(this->get_logger(),
                             "❌ resend_robot_program exception: %s", e.what());
