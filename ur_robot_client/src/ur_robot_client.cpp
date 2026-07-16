@@ -976,6 +976,13 @@ void URRobotClient::safetyModeCallback(const ur_dashboard_msgs::msg::SafetyMode:
     } else {
         RCLCPP_WARN(this->get_logger(), "🛡️ Safety mode changed: %u -> %u",
                     static_cast<unsigned>(prev), static_cast<unsigned>(msg->mode));
+
+        if (program_state_received_ && program_running_ && !program_maybe_paused_.exchange(true)) {
+            RCLCPP_WARN(this->get_logger(),
+                        "⏸️ Safety left NORMAL while program was running - PAUSE suspected, "
+                        "recovery armed (safety_mode: %u -> %u)",
+                        static_cast<unsigned>(prev), static_cast<unsigned>(msg->mode));
+        }
     }
 }
 
@@ -994,8 +1001,11 @@ void URRobotClient::autoRegainControl() {
         checkRemoteControl();
     }
 
-    // Armed only after the first program state message (stays dormant on fake HW)
-    if (!program_state_received_ || program_running_) {
+    // Armed only after the first program state message (stays dormant on fake HW).
+    // program_maybe_paused_ overrides program_running_==true: e-stop leaves the
+    // program PAUSED (not stopped), so robot_program_running stays true and this
+    // check must not block recovery in that case.
+    if (!program_state_received_ || (program_running_ && !program_maybe_paused_)) {
         return;
     }
 
@@ -1049,6 +1059,8 @@ void URRobotClient::autoRegainControl() {
                 if (!response->success) {
                     RCLCPP_WARN(this->get_logger(),
                                 "❌ resend_robot_program failed - will retry");
+                } else {
+                    program_maybe_paused_ = false;
                 }
             } catch (const std::exception& e) {
                 RCLCPP_WARN(this->get_logger(),

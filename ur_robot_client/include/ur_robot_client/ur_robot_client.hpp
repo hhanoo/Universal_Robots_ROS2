@@ -148,14 +148,15 @@ class URRobotClient : public rclcpp::Node {
     rclcpp::Client<ur_dashboard_msgs::srv::IsInRemoteControl>::SharedPtr remote_control_client_;
     rclcpp::TimerBase::SharedPtr                                         watchdog_timer_;
 
-    std::atomic<bool>    program_running_;         // Latest robot_program_running value
-    std::atomic<bool>    program_state_received_;  // Watchdog armed only after first message
-    std::atomic<bool>    control_lost_logged_;     // Pairs "control lost" / "control regained" logs
-    std::atomic<bool>    resend_in_flight_;        // A resend request is awaiting response
-    std::atomic<int8_t>  robot_mode_;              // ur_dashboard_msgs::msg::RobotMode
-    std::atomic<uint8_t> safety_mode_;             // ur_dashboard_msgs::msg::SafetyMode
-    std::atomic<int8_t>  remote_control_{-1};      // 1=remote, 0=local, -1=unknown
-    unsigned             watchdog_tick_{0};        // Remote 폴링 주기 계산용 (5s)
+    std::atomic<bool>    program_running_;              // Latest robot_program_running value
+    std::atomic<bool>    program_state_received_;       // Watchdog armed only after first message
+    std::atomic<bool>    control_lost_logged_;          // Pairs "control lost" / "control regained" logs
+    std::atomic<bool>    resend_in_flight_;             // A resend request is awaiting response
+    std::atomic<bool>    program_maybe_paused_{false};  // Safety left NORMAL while program was running - PAUSE suspected
+    std::atomic<int8_t>  robot_mode_;                   // ur_dashboard_msgs::msg::RobotMode
+    std::atomic<uint8_t> safety_mode_;                  // ur_dashboard_msgs::msg::SafetyMode
+    std::atomic<int8_t>  remote_control_{-1};           // 1=remote, 0=local, -1=unknown
+    unsigned             watchdog_tick_{0};             // Remote 폴링 주기 계산용 (5s)
 
     rclcpp::Clock steady_clock_{RCL_STEADY_TIME};
     rclcpp::Time  last_resend_time_;  // Throttle: one resend per 3 seconds
