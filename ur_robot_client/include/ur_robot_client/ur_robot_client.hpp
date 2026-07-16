@@ -146,21 +146,24 @@ class URRobotClient : public rclcpp::Node {
     rclcpp::Subscription<ur_dashboard_msgs::msg::SafetyMode>::SharedPtr  safety_mode_sub_;
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr                    resend_program_client_;
     rclcpp::Client<ur_dashboard_msgs::srv::IsInRemoteControl>::SharedPtr remote_control_client_;
+    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr                    dashboard_connect_client_;
     rclcpp::TimerBase::SharedPtr                                         watchdog_timer_;
 
-    std::atomic<bool>    program_running_;              // Latest robot_program_running value
-    std::atomic<bool>    program_state_received_;       // Watchdog armed only after first message
-    std::atomic<bool>    control_lost_logged_;          // Pairs "control lost" / "control regained" logs
-    std::atomic<bool>    resend_in_flight_;             // A resend request is awaiting response
-    std::atomic<bool>    program_maybe_paused_{false};  // Safety left NORMAL while program was running - PAUSE suspected
-    std::atomic<int8_t>  robot_mode_;                   // ur_dashboard_msgs::msg::RobotMode
-    std::atomic<uint8_t> safety_mode_;                  // ur_dashboard_msgs::msg::SafetyMode
-    std::atomic<int8_t>  remote_control_{-1};           // 1=remote, 0=local, -1=unknown
-    unsigned             watchdog_tick_{0};             // Remote 폴링 주기 계산용 (5s)
+    std::atomic<bool>    program_running_;                   // Latest robot_program_running value
+    std::atomic<bool>    program_state_received_;            // Watchdog armed only after first message
+    std::atomic<bool>    control_lost_logged_;               // Pairs "control lost" / "control regained" logs
+    std::atomic<bool>    resend_in_flight_;                  // A resend request is awaiting response
+    std::atomic<bool>    program_maybe_paused_{false};       // Safety left NORMAL while program was running - PAUSE suspected
+    std::atomic<int8_t>  robot_mode_;                        // ur_dashboard_msgs::msg::RobotMode
+    std::atomic<uint8_t> safety_mode_;                       // ur_dashboard_msgs::msg::SafetyMode
+    std::atomic<int8_t>  remote_control_{-1};                // 1=remote, 0=local, -1=unknown
+    std::atomic<bool>    dashboard_needs_reconnect_{false};  // dashboard_client TCP socket died (Local switch) - reconnecting
+    unsigned             watchdog_tick_{0};                  // Remote 폴링 주기 계산용 (5s)
 
     rclcpp::Clock steady_clock_{RCL_STEADY_TIME};
-    rclcpp::Time  last_resend_time_;  // Throttle: one resend per 3 seconds
-    rclcpp::Time  resend_sent_time_;  // In-flight timeout tracking
+    rclcpp::Time  last_resend_time_;             // Throttle: one resend per 3 seconds
+    rclcpp::Time  resend_sent_time_;             // In-flight timeout tracking
+    rclcpp::Time  last_dashboard_connect_time_;  // Throttle: one dashboard connect() attempt per 30 seconds
 
     // * TF
     std::shared_ptr<tf2_ros::Buffer>            tf_buffer_;

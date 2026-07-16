@@ -18,6 +18,7 @@ URRobotClient::URRobotClient()
       safety_mode_(0),
       last_resend_time_(0, 0, RCL_STEADY_TIME),
       resend_sent_time_(0, 0, RCL_STEADY_TIME),
+      last_dashboard_connect_time_(0, 0, RCL_STEADY_TIME),
       connected_(false),
       last_joint_state_time_(rclcpp::Clock().now()),
       speed_slider_(1.0),
@@ -81,6 +82,8 @@ URRobotClient::URRobotClient()
         "/io_and_status_controller/resend_robot_program");
     remote_control_client_ = this->create_client<ur_dashboard_msgs::srv::IsInRemoteControl>(
         "/dashboard_client/is_in_remote_control");
+    dashboard_connect_client_ = this->create_client<std_srvs::srv::Trigger>(
+        "/dashboard_client/connect");
 
     watchdog_timer_ = this->create_wall_timer(
         500ms,
@@ -1077,8 +1080,42 @@ void URRobotClient::autoRegainControl() {
  * Local mode makes resend_robot_program "succeed" without the program actually
  * running, so transitions are logged. The dashboard service only exists on
  * real hardware — on fake HW this silently skips and the cache stays unknown.
+ *
+ * If dashboard_client's own TCP socket to the robot has died (e.g. pendant
+ * switched to Local), is_in_remote_control calls keep failing and dashboard_client
+ * logs a socket error on every poll. Once that failure is detected, this function
+ * stops polling is_in_remote_control and instead retries /dashboard_client/connect
+ * (throttled to once per 30s) until it succeeds, then resumes normal polling.
  */
 void URRobotClient::checkRemoteControl() {
+    if (dashboard_needs_reconnect_) {
+        auto now = steady_clock_.now();
+        if ((now - last_dashboard_connect_time_).seconds() < 30.0) {
+            return;
+        }
+
+        if (!dashboard_connect_client_->service_is_ready()) {
+            return;
+        }
+
+        last_dashboard_connect_time_ = now;
+
+        auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+        dashboard_connect_client_->async_send_request(
+            request,
+            [this](rclcpp::Client<std_srvs::srv::Trigger>::SharedFuture future) {
+                try {
+                    auto response = future.get();
+                    if (response->success && dashboard_needs_reconnect_.exchange(false)) {
+                        RCLCPP_INFO(this->get_logger(), "✅ dashboard_client reconnected");
+                    }
+                } catch (const std::exception&) {
+                    // Best-effort only - next 30s throttle window retries
+                }
+            });
+        return;
+    }
+
     if (!remote_control_client_->service_is_ready()) {
         return;
     }
@@ -1090,6 +1127,11 @@ void URRobotClient::checkRemoteControl() {
             try {
                 auto response = future.get();
                 if (!response->success) {
+                    if (!dashboard_needs_reconnect_.exchange(true)) {
+                        RCLCPP_WARN(this->get_logger(),
+                                    "⚠️ dashboard_client is_in_remote_control failed - "
+                                    "will retry connect (30s throttle)");
+                    }
                     return;
                 }
 
@@ -1102,7 +1144,11 @@ void URRobotClient::checkRemoteControl() {
                     RCLCPP_INFO(this->get_logger(), "✅ Pendant switched to Remote control");
                 }
             } catch (const std::exception&) {
-                // Best-effort only
+                if (!dashboard_needs_reconnect_.exchange(true)) {
+                    RCLCPP_WARN(this->get_logger(),
+                                "⚠️ dashboard_client is_in_remote_control exception - "
+                                "will retry connect (30s throttle)");
+                }
             }
         });
 }
