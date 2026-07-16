@@ -10,6 +10,7 @@ Features:
 - Robot state monitoring
 - TCP pose tracking via TF
 - Program (external control) state monitoring
+- Program watchdog: auto-regains control after e-stop/Local mode
 """
 
 import asyncio
@@ -17,11 +18,14 @@ import asyncio
 import numpy as np
 import rclpy
 from rclpy.action import ActionClient
+from rclpy.clock import Clock, ClockType
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+from rclpy.time import Time
 from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Bool, Float64
+from std_srvs.srv import Trigger
 from tf2_ros import Buffer, TransformListener
 from ur_dashboard_msgs.msg import RobotMode, SafetyMode
 from ur_dashboard_msgs.srv import IsInRemoteControl
@@ -129,6 +133,15 @@ class URRobotClient:
             5.0, self._poll_remote_control
         )
 
+        # Program watchdog (auto-regain control after e-stop / Local mode)
+        self.resend_program_client = self.node.create_client(
+            Trigger, "/io_and_status_controller/resend_robot_program"
+        )
+        self.dashboard_connect_client = self.node.create_client(
+            Trigger, "/dashboard_client/connect"
+        )
+        self.watchdog_timer = self.node.create_timer(0.5, self.auto_regain_control)
+
         # TF
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self.node)
@@ -147,10 +160,30 @@ class URRobotClient:
 
         self.program_running = False  # Latest robot_program_running value
         self.program_state_received = False  # Not published on fake hardware
+        self.program_maybe_paused = (
+            False  # Safety left NORMAL while program was running - PAUSE suspected
+        )
+        self.resend_in_flight = False  # A resend request is awaiting response
+        self._resend_future = None  # In-flight resend future (for timeout pruning)
 
         self.robot_mode = RobotMode.DISCONNECTED  # ur_dashboard_msgs RobotMode
         self.safety_mode = 0  # ur_dashboard_msgs SafetyMode (0 = not received)
         self.remote_control = -1  # 1=remote, 0=local, -1=unknown
+        self.dashboard_needs_reconnect = (
+            False  # dashboard_client TCP socket died (Local switch) - reconnecting
+        )
+
+        # Steady clock for watchdog throttles (immune to sim-time jumps)
+        self.steady_clock = Clock(clock_type=ClockType.STEADY_TIME)
+        self.last_resend_time = Time(
+            clock_type=ClockType.STEADY_TIME
+        )  # Throttle: one resend per 3s
+        self.resend_sent_time = Time(
+            clock_type=ClockType.STEADY_TIME
+        )  # In-flight timeout tracking
+        self.last_dashboard_connect_time = Time(
+            clock_type=ClockType.STEADY_TIME
+        )  # Throttle: one dashboard connect() attempt per 30s
 
         # Connection flags
         self.joint_state_ready = False
@@ -825,9 +858,106 @@ class URRobotClient:
                 self.node.get_logger().warn(
                     f"🛡️ Safety mode changed: {prev} -> {msg.mode}"
                 )
+                if (
+                    self.program_state_received
+                    and self.program_running
+                    and not self.program_maybe_paused
+                ):
+                    self.program_maybe_paused = True
+                    self.node.get_logger().warn(
+                        "⏸️ Safety left NORMAL while program was running - PAUSE "
+                        f"suspected, recovery armed (safety_mode: {prev} -> {msg.mode})"
+                    )
+
+    def auto_regain_control(self):
+        """Watchdog tick (500ms): resend the program once the robot recovers
+        (RUNNING + NORMAL) from e-stop/Local mode. Never automates physical
+        recovery (e-stop release, power/brake, Remote switch)."""
+        # program_maybe_paused lets this proceed even though e-stop leaves
+        # program_running True (PAUSE, not stop)
+        if not self.program_state_received or (
+            self.program_running and not self.program_maybe_paused
+        ):
+            return
+
+        # Wait until the operator finished physical recovery
+        if (
+            self.robot_mode != RobotMode.RUNNING
+            or self.safety_mode != SafetyMode.NORMAL
+        ):
+            return
+
+        now = self.steady_clock.now()
+
+        # Drop a stuck in-flight request (e.g. driver restarted mid-call)
+        if self.resend_in_flight:
+            if (now - self.resend_sent_time).nanoseconds / 1e9 > 10.0:
+                self.node.get_logger().warn(
+                    "⚠️ resend_robot_program response timed out - resetting"
+                )
+                if self._resend_future is not None:
+                    self.resend_program_client.remove_pending_request(
+                        self._resend_future
+                    )
+                    self._resend_future = None
+                self.resend_in_flight = False
+            else:
+                return
+
+        # Throttle: one resend attempt per 3 seconds
+        if (now - self.last_resend_time).nanoseconds / 1e9 < 3.0:
+            return
+
+        if not self.resend_program_client.service_is_ready():
+            self.node.get_logger().warn(
+                "⚠️ resend_robot_program service not available",
+                throttle_duration_sec=10.0,
+            )
+            return
+
+        self.last_resend_time = now
+        self.resend_sent_time = now
+        self.resend_in_flight = True
+
+        self.node.get_logger().info(
+            "🔄 Attempting to regain robot control (resend_robot_program)..."
+        )
+
+        self._resend_future = self.resend_program_client.call_async(Trigger.Request())
+        self._resend_future.add_done_callback(self._resend_response)
+
+    def _resend_response(self, future):
+        """Handle resend_robot_program response (success ≠ program actually resumed)"""
+        self.resend_in_flight = False
+        self._resend_future = None
+        try:
+            response = future.result()
+            if not response.success:
+                self.node.get_logger().warn(
+                    "❌ resend_robot_program failed - will retry"
+                )
+            elif self.remote_control == 1:
+                self.program_maybe_paused = False
+            # else: Local "success" is a false-positive - stay armed, let throttle retry
+        except Exception as e:
+            self.node.get_logger().warn(f"❌ resend_robot_program exception: {e}")
 
     def _poll_remote_control(self):
-        """Poll dashboard is_in_remote_control and cache the result"""
+        """Poll is_in_remote_control and cache the result; if dashboard_client's
+        socket died (Local switch), retry /dashboard_client/connect instead (30s throttle)
+        """
+        if self.dashboard_needs_reconnect:
+            now = self.steady_clock.now()
+            if (now - self.last_dashboard_connect_time).nanoseconds / 1e9 < 30.0:
+                return
+            if not self.dashboard_connect_client.service_is_ready():
+                return
+
+            self.last_dashboard_connect_time = now
+            future = self.dashboard_connect_client.call_async(Trigger.Request())
+            future.add_done_callback(self._dashboard_connect_response)
+            return
+
         if not self.remote_control_client.service_is_ready():
             return
         future = self.remote_control_client.call_async(IsInRemoteControl.Request())
@@ -837,9 +967,21 @@ class URRobotClient:
         """Cache Remote/Local mode; log only on transition"""
         try:
             response = future.result()
+            if not response.success:
+                if not self.dashboard_needs_reconnect:
+                    self.dashboard_needs_reconnect = True
+                    self.node.get_logger().warn(
+                        "⚠️ dashboard_client is_in_remote_control failed - "
+                        "will retry connect (30s throttle)"
+                    )
+                return
         except Exception:
-            return  # Best-effort only
-        if not response.success:
+            if not self.dashboard_needs_reconnect:
+                self.dashboard_needs_reconnect = True
+                self.node.get_logger().warn(
+                    "⚠️ dashboard_client is_in_remote_control exception - "
+                    "will retry connect (30s throttle)"
+                )
             return
 
         prev = self.remote_control
@@ -850,6 +992,16 @@ class URRobotClient:
             )
         elif self.remote_control == 1 and prev == 0:
             self.node.get_logger().info("✅ Pendant switched to Remote control")
+
+    def _dashboard_connect_response(self, future):
+        """Handle /dashboard_client/connect response; resumes normal polling on success"""
+        try:
+            response = future.result()
+            if response.success and self.dashboard_needs_reconnect:
+                self.dashboard_needs_reconnect = False
+                self.node.get_logger().info("✅ dashboard_client reconnected")
+        except Exception:
+            pass  # Best-effort only - next 30s throttle window retries
 
     # ========================================================
     # Internal Helper Methods

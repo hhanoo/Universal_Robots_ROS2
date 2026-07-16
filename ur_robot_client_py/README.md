@@ -11,7 +11,8 @@
 - `URRobotClient`는 **non-Node 클래스**입니다 — ROS2 Node를 상속하지 않고 생성자에서 Node 인스턴스를 주입받아 사용하므로, 기존 노드에 쉽게 얹을 수 있습니다
 - 스핀은 호출자 책임입니다 — `rclpy.spin_once()` 루프(또는 executor)를 직접 돌려야 콜백과 모션 결과가 처리됩니다
 - **모션·서비스 API는 코루틴**입니다 — `await robot.move_j(...)`처럼 호출하며 `(success, message)` 튜플을 반환합니다
-- 제어권(Program)·Robot/Safety mode·Pendant Remote/Local 상태 조회 제공 (자동 제어권 회복 watchdog은 C++ 클라이언트 전용)
+- 제어권(Program)·Robot/Safety mode·Pendant Remote/Local 상태 조회 제공
+- **Program watchdog 내장**: e-stop/Local 모드로 제어권을 잃으면 로봇 복구(robot mode `RUNNING` + safety mode `NORMAL`) 시점에 `resend_robot_program`을 자동 호출해 제어권을 회복합니다 (3초 간격 재시도, 비상정지 해제 등 물리 복구는 자동화하지 않음)
 
 ---
 
@@ -157,7 +158,7 @@ get_safety_mode() -> int       # ur_dashboard_msgs SafetyMode 상수 (NORMAL=1, 
 
 ## 관련 패키지
 
-- [ur_robot_client](../ur_robot_client/): 동일 기능의 C++ 클라이언트 (자체 executor + watchdog 자동 회복 포함)
+- [ur_robot_client](../ur_robot_client/): 동일 기능의 C++ 클라이언트 (자체 executor 스레드 포함)
 - [ur_motion](../ur_motion/): MoveJ/MoveL Action Server (Action 정의 포함)
 
 ## 라이선스
