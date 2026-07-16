@@ -49,6 +49,7 @@ libopen62541.a
 libopen62541.so*
 
 # Claude
+.claude/
 CLAUDE.md
 
 # ROS2 description wrapper
