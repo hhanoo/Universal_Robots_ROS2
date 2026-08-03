@@ -225,12 +225,22 @@ uint8_t URRobotClient::getSafetyMode() const {
  * @return 6 joint positions in radians
  */
 std::array<double, 6> URRobotClient::getJointPositions() const {
-    if (!latest_joint_state_ || !connected_) {
+    // Copy the shared_ptr under the lock so the message stays alive even if
+    // jointStateCallback swaps in a new one while we read it.
+    sensor_msgs::msg::JointState::SharedPtr joint_state;
+    rclcpp::Time                            joint_state_time;
+    {
+        std::lock_guard<std::mutex> lock(joint_state_mutex_);
+        joint_state      = latest_joint_state_;
+        joint_state_time = last_joint_state_time_;
+    }
+
+    if (!joint_state || !connected_) {
         return std::array<double, 6>();
     }
 
     // Check if data is recent (within 1 second)
-    rclcpp::Duration time_since_update = this->now() - last_joint_state_time_;
+    rclcpp::Duration time_since_update = this->now() - joint_state_time;
     if (time_since_update.seconds() > 1.0) {
         return std::array<double, 6>();
     }
@@ -240,8 +250,8 @@ std::array<double, 6> URRobotClient::getJointPositions() const {
         "shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
         "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"};
 
-    const auto& names     = latest_joint_state_->name;
-    const auto& positions = latest_joint_state_->position;
+    const auto& names     = joint_state->name;
+    const auto& positions = joint_state->position;
 
     if (names.size() < 6 || positions.size() < 6) {
         return std::array<double, 6>();
@@ -870,8 +880,11 @@ void URRobotClient::jointStateCallback(const sensor_msgs::msg::JointState::Share
         return;
     }
 
-    latest_joint_state_    = msg;
-    last_joint_state_time_ = this->now();
+    {
+        std::lock_guard<std::mutex> lock(joint_state_mutex_);
+        latest_joint_state_    = msg;
+        last_joint_state_time_ = this->now();
+    }
 
     if (!joint_state_ready_) {
         RCLCPP_INFO(this->get_logger(),

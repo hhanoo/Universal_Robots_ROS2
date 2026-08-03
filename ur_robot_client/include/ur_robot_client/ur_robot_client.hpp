@@ -172,6 +172,9 @@ class URRobotClient : public rclcpp::Node {
     // * State variables
     bool connected_;
 
+    // Written by the executor thread (jointStateCallback), read by external
+    // threads (e.g. OPC UA timer) — every access must hold joint_state_mutex_.
+    mutable std::mutex                      joint_state_mutex_;
     sensor_msgs::msg::JointState::SharedPtr latest_joint_state_;
     rclcpp::Time                            last_joint_state_time_;
 
