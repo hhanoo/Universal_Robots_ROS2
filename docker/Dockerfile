@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     locales \
     fonts-noto-color-emoji \
     fonts-noto-cjk \
+    fonts-ubuntu \
     && rm -rf /var/lib/apt/lists/* \
     && locale-gen en_US en_US.UTF-8 \
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
@@ -57,6 +58,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # - libmodbus-dev : tool controllers (Modbus RTU/TCP)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libmodbus-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# =========================================================================
+# Qt / GUI Dependencies
+# =========================================================================
+# - qt6-base-dev       : Qt6 Widgets GUI (ur_motion_panel)
+# - qt6-base-dev-tools : moc/uic code generators
+# - libgl-dev          : OpenGL headers required by Qt6
+# - libeigen3-dev      : TCP rotation math
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libeigen3-dev \
+    libgl-dev \
+    qt6-base-dev \
+    qt6-base-dev-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # =========================================================================

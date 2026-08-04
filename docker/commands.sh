@@ -39,6 +39,11 @@ debug-motion() {
     gdbserver :3000 install/ur_motion/lib/ur_motion/motion_action_server "$@"
 }
 
+debug-panel() {
+    source-ros-ws
+    gdbserver :3000 install/ur_motion_panel/lib/ur_motion_panel/ur_motion_panel "$@"
+}
+
 # ===== Robot calibration =====
 extract-calib() {
     source-ros-ws
@@ -86,6 +91,12 @@ run-all() {
         "$@"
 }
 
+# ===== GUI =====
+run-panel() {
+    source-ros-ws
+    ros2 run ur_motion_panel ur_motion_panel "$@"
+}
+
 # ===== Examples (단계 순서: 연결 점검 → 기본 모션 → I/O → 통합) =====
 example-state() {
     source-ros-ws
@@ -118,6 +129,7 @@ cmd-help() {
 
     printf "  Debug (gdbserver :3000, host VSCode F5 attach):\n"
     printf "    %-18s - %s\n" "debug-motion"     "Run motion_action_server under gdbserver"
+    printf "    %-18s - %s\n" "debug-panel"    "Run ur_motion_panel under gdbserver"
     printf "\n"
 
     printf "  Robot calibration:\n"
@@ -134,8 +146,12 @@ cmd-help() {
     printf "    %-18s - %s\n" "run-all"          "UR driver + MoveIt + Motion        [ROBOT_IP, UR_TYPE, USE_FAKE_HARDWARE, LAUNCH_RVIZ]"
     printf "\n"
 
-    printf "  Examples (ur_robot_client, 단계 순서):\n"
-    printf "    %-18s - %s\n" "example-state"      "1. Read-only state monitoring (연결 점검)"
+    printf "  GUI (ur_motion_panel):\n"
+    printf "    %-18s - %s\n" "run-panel"      "UR Motion Panel (MoveJ/MoveL/DIO jog, requires run-all)"
+    printf "\n"
+
+    printf "  Examples (ur_robot_client, in order):\n"
+    printf "    %-18s - %s\n" "example-state"      "1. Read-only state monitoring (connection check)"
     printf "    %-18s - %s\n" "example-movej"      "2. MoveJ motion example"
     printf "    %-18s - %s\n" "example-io"         "3. Digital I/O + speed slider example"
     printf "    %-18s - %s\n" "example-pick-place" "4. Pick & Place full example"

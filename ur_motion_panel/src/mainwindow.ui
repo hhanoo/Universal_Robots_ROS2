@@ -1,0 +1,2047 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+  <class>MainWindow</class>
+  <widget class="QMainWindow" name="MainWindow">
+    <property name="geometry">
+      <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>1060</width>
+        <height>880</height>
+      </rect>
+    </property>
+    <property name="minimumSize">
+      <size>
+        <width>1020</width>
+        <height>860</height>
+      </size>
+    </property>
+    <property name="windowTitle">
+      <string>UR Motion Panel</string>
+    </property>
+    <property name="styleSheet">
+      <string>#centralwidget { background: #eceff3; }
+QGroupBox { background: #ffffff; border: 1px solid #d7dce3; border-radius: 6px; margin-top: 10px; padding-top: 4px; }
+QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: #39414e; }
+QLabel { background: transparent; }
+QLabel[role="hdr"] { color: #8a93a1; }
+QLabel[role="cap"] { color: #6a7482; }
+QLabel#label_status { min-height: 44px; }
+QCheckBox { color: #6a7482; spacing: 3px; }
+QLineEdit { background: #ffffff; border: 1px solid #c9d0da; border-radius: 4px; padding: 2px 6px; color: #141a22; }
+QLineEdit:read-only { background: #f4f6f8; }
+QLineEdit[mode="live"] { color: #1e8449; }
+QLineEdit[mode="run"] { color: #b9770e; }
+QLineEdit[mode="off"] { color: #b4bbc6; }
+QLineEdit, QSpinBox, QDoubleSpinBox { min-height: 30px; }
+QPushButton { background: #ffffff; border: 1px solid #c9d0da; border-radius: 4px; padding: 4px 10px; color: #2b3340; min-height: 36px; }
+QPushButton:hover:enabled { background: #f0f4fa; }
+QPushButton:pressed { background: #e2e9f3; }
+QPushButton:disabled { color: #b4bbc6; background: #f4f6f8; }
+QPushButton#btn_moveJ, QPushButton#btn_moveL, QPushButton#btnRobotConnect { background: #2f6fd0; border: 1px solid #2f6fd0; color: white; font-weight: bold; }
+QPushButton#btn_moveJ:hover:enabled, QPushButton#btn_moveL:hover:enabled, QPushButton#btnRobotConnect:hover:enabled { background: #2a63bb; }
+QPushButton#btn_moveJ:disabled, QPushButton#btn_moveL:disabled { background: #f4f6f8; border: 1px solid #dde3ea; color: #b4bbc6; font-weight: normal; }
+QPushButton#btn_moveJ, QPushButton#btn_moveL { min-height: 44px; }
+QPushButton#btnRobotConnect { min-height: 44px; }
+QPushButton#btn_stop { background: #c0392b; border: 1px solid #a93226; color: white; font-weight: bold; min-height: 44px; }
+QPushButton#btn_stop:hover:enabled { background: #d64541; }
+QPushButton#btn_stop:pressed { background: #a93226; }
+QPushButton#btn_stop:disabled { background: #dcaaa4; border: 1px solid #d09b94; color: #f6e8e6; }</string>
+    </property>
+    <widget class="QWidget" name="centralwidget">
+      <layout class="QVBoxLayout" name="rootLayout">
+        <property name="leftMargin">
+          <number>12</number>
+        </property>
+        <property name="topMargin">
+          <number>12</number>
+        </property>
+        <property name="rightMargin">
+          <number>12</number>
+        </property>
+        <property name="bottomMargin">
+          <number>12</number>
+        </property>
+        <property name="spacing">
+          <number>12</number>
+        </property>
+        <item>
+          <layout class="QHBoxLayout" name="topBar">
+            <property name="spacing">
+              <number>10</number>
+            </property>
+            <item>
+              <widget class="QLabel" name="label_status">
+                <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                  </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                  <size>
+                    <width>0</width>
+                    <height>44</height>
+                  </size>
+                </property>
+                <property name="font">
+                  <font>
+                    <bold>true</bold>
+                  </font>
+                </property>
+                <property name="styleSheet">
+                  <string>background:#8a94a3; color:white; border-radius:12px;</string>
+                </property>
+                <property name="text">
+                  <string>Disconnected — start run-all, then Connect</string>
+                </property>
+                <property name="alignment">
+                  <set>Qt::AlignCenter</set>
+                </property>
+              </widget>
+            </item>
+            <item>
+              <widget class="QPushButton" name="btn_stop">
+                <property name="enabled">
+                  <bool>false</bool>
+                </property>
+                <property name="toolTip">
+                  <string>Cancel the running MoveJ/MoveL (software stop — not an emergency stop)</string>
+                </property>
+                <property name="minimumSize">
+                  <size>
+                    <width>170</width>
+                    <height>44</height>
+                  </size>
+                </property>
+                <property name="font">
+                  <font>
+                    <pointsize>12</pointsize>
+                    <bold>true</bold>
+                  </font>
+                </property>
+                <property name="text">
+                  <string>STOP MOTION</string>
+                </property>
+              </widget>
+            </item>
+            <item>
+              <widget class="QPushButton" name="btnRobotConnect">
+                <property name="toolTip">
+                  <string>Connect to the running ROS2 stack (run-all)</string>
+                </property>
+                <property name="minimumSize">
+                  <size>
+                    <width>130</width>
+                    <height>44</height>
+                  </size>
+                </property>
+                <property name="font">
+                  <font>
+                    <pointsize>11</pointsize>
+                    <bold>true</bold>
+                  </font>
+                </property>
+                <property name="text">
+                  <string>Connect</string>
+                </property>
+              </widget>
+            </item>
+          </layout>
+        </item>
+        <item>
+          <layout class="QHBoxLayout" name="mainRow" stretch="1,1">
+            <property name="spacing">
+              <number>12</number>
+            </property>
+            <item>
+              <layout class="QVBoxLayout" name="leftCol" stretch="1,0,0">
+                <property name="spacing">
+                  <number>12</number>
+                </property>
+                <item>
+                  <widget class="QGroupBox" name="joint_groupBox">
+                    <property name="font">
+                      <font>
+                        <bold>true</bold>
+                      </font>
+                    </property>
+                    <property name="title">
+                      <string>Joint</string>
+                    </property>
+                    <layout class="QGridLayout" name="jointGrid" columnstretch="0,1,1">
+                      <property name="leftMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="topMargin">
+                        <number>14</number>
+                      </property>
+                      <property name="rightMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="bottomMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="horizontalSpacing">
+                        <number>10</number>
+                      </property>
+                      <property name="verticalSpacing">
+                        <number>10</number>
+                      </property>
+                      <item row="0" column="1">
+                        <widget class="QLabel" name="label_hdr_jnt_cur">
+                          <property name="role" stdset="0">
+                            <string>hdr</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Current [°]</string>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="2">
+                        <widget class="QLabel" name="label_hdr_jnt_tgt">
+                          <property name="role" stdset="0">
+                            <string>hdr</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Target [°]</string>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="0">
+                        <widget class="QLabel" name="label_j1">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>J1</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="1">
+                        <widget class="QLineEdit" name="txt_Joint1">
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_Joint1">
+                          <property name="minimum">
+                            <double>-360.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>360.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>5.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="0">
+                        <widget class="QLabel" name="label_j2">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>J2</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="1">
+                        <widget class="QLineEdit" name="txt_Joint2">
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_Joint2">
+                          <property name="minimum">
+                            <double>-360.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>360.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>5.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="3" column="0">
+                        <widget class="QLabel" name="label_j3">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>J3</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="3" column="1">
+                        <widget class="QLineEdit" name="txt_Joint3">
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="3" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_Joint3">
+                          <property name="minimum">
+                            <double>-360.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>360.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>5.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="4" column="0">
+                        <widget class="QLabel" name="label_j4">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>J4</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="4" column="1">
+                        <widget class="QLineEdit" name="txt_Joint4">
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="4" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_Joint4">
+                          <property name="minimum">
+                            <double>-360.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>360.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>5.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="5" column="0">
+                        <widget class="QLabel" name="label_j5">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>J5</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="5" column="1">
+                        <widget class="QLineEdit" name="txt_Joint5">
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="5" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_Joint5">
+                          <property name="minimum">
+                            <double>-360.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>360.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>5.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="6" column="0">
+                        <widget class="QLabel" name="label_j6">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>J6</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="6" column="1">
+                        <widget class="QLineEdit" name="txt_Joint6">
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="6" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_Joint6">
+                          <property name="minimum">
+                            <double>-360.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>360.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>5.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="7" column="0" colspan="3">
+                        <layout class="QHBoxLayout" name="jointActions">
+                          <property name="spacing">
+                            <number>10</number>
+                          </property>
+                          <item>
+                            <widget class="QPushButton" name="btn_print_joint">
+                              <property name="toolTip">
+                                <string>Print current joint values (rad) to the terminal</string>
+                              </property>
+                              <property name="font">
+                                <font>
+                                  <bold>false</bold>
+                                </font>
+                              </property>
+                              <property name="text">
+                                <string>Print to terminal</string>
+                              </property>
+                            </widget>
+                          </item>
+                          <item>
+                            <widget class="QPushButton" name="btn_apply_joint">
+                              <property name="toolTip">
+                                <string>Copy current joint values into the target fields</string>
+                              </property>
+                              <property name="font">
+                                <font>
+                                  <bold>false</bold>
+                                </font>
+                              </property>
+                              <property name="text">
+                                <string>Current → Target</string>
+                              </property>
+                            </widget>
+                          </item>
+                        </layout>
+                      </item>
+                      <item row="8" column="0" colspan="3">
+                        <widget class="QPushButton" name="btn_moveJ">
+                          <property name="toolTip">
+                            <string>Plan and move to the target joint values</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <pointsize>11</pointsize>
+                              <bold>true</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>MoveJ</string>
+                          </property>
+                        </widget>
+                      </item>
+                    </layout>
+                  </widget>
+                </item>
+                <item>
+                  <widget class="QGroupBox" name="rot_groupBox">
+                    <property name="font">
+                      <font>
+                        <bold>true</bold>
+                      </font>
+                    </property>
+                    <property name="title">
+                      <string>Rotate Tool (tool frame) — moves on click</string>
+                    </property>
+                    <layout class="QGridLayout" name="rotGrid" columnstretch="0,1,0,0">
+                      <property name="leftMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="topMargin">
+                        <number>14</number>
+                      </property>
+                      <property name="rightMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="bottomMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="horizontalSpacing">
+                        <number>10</number>
+                      </property>
+                      <property name="verticalSpacing">
+                        <number>10</number>
+                      </property>
+                      <item row="0" column="0">
+                        <widget class="QLabel" name="label_rx">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>RX step</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="1">
+                        <widget class="QSpinBox" name="spinBox_rx">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="suffix">
+                            <string> °</string>
+                          </property>
+                          <property name="minimum">
+                            <number>1</number>
+                          </property>
+                          <property name="maximum">
+                            <number>180</number>
+                          </property>
+                          <property name="value">
+                            <number>10</number>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="2">
+                        <widget class="QPushButton" name="btn_rx_m">
+                          <property name="toolTip">
+                            <string>Rotate -step around tool X immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>-</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="3">
+                        <widget class="QPushButton" name="btn_rx_p">
+                          <property name="toolTip">
+                            <string>Rotate +step around tool X immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>+</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="0">
+                        <widget class="QLabel" name="label_ry">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>RY step</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="1">
+                        <widget class="QSpinBox" name="spinBox_ry">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="suffix">
+                            <string> °</string>
+                          </property>
+                          <property name="minimum">
+                            <number>1</number>
+                          </property>
+                          <property name="maximum">
+                            <number>180</number>
+                          </property>
+                          <property name="value">
+                            <number>10</number>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="2">
+                        <widget class="QPushButton" name="btn_ry_m">
+                          <property name="toolTip">
+                            <string>Rotate -step around tool Y immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>-</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="3">
+                        <widget class="QPushButton" name="btn_ry_p">
+                          <property name="toolTip">
+                            <string>Rotate +step around tool Y immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>+</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="0">
+                        <widget class="QLabel" name="label_rz">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>RZ step</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="1">
+                        <widget class="QSpinBox" name="spinBox_rz">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="suffix">
+                            <string> °</string>
+                          </property>
+                          <property name="minimum">
+                            <number>1</number>
+                          </property>
+                          <property name="maximum">
+                            <number>180</number>
+                          </property>
+                          <property name="value">
+                            <number>10</number>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="2">
+                        <widget class="QPushButton" name="btn_rz_m">
+                          <property name="toolTip">
+                            <string>Rotate -step around tool Z immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>-</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="3">
+                        <widget class="QPushButton" name="btn_rz_p">
+                          <property name="toolTip">
+                            <string>Rotate +step around tool Z immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>+</string>
+                          </property>
+                        </widget>
+                      </item>
+                    </layout>
+                  </widget>
+                </item>
+                <item>
+                  <widget class="QGroupBox" name="dio_groupBox">
+                    <property name="font">
+                      <font>
+                        <bold>true</bold>
+                      </font>
+                    </property>
+                    <property name="title">
+                      <string>Digital I/O</string>
+                    </property>
+                    <layout class="QGridLayout" name="dioGrid" columnstretch="0,1,1,1,1,1,1,1,1">
+                      <property name="leftMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="topMargin">
+                        <number>14</number>
+                      </property>
+                      <property name="rightMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="bottomMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="horizontalSpacing">
+                        <number>10</number>
+                      </property>
+                      <property name="verticalSpacing">
+                        <number>10</number>
+                      </property>
+                      <item row="0" column="0">
+                        <widget class="QLabel" name="label_din">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Input</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="1">
+                        <widget class="QCheckBox" name="checkBox_input_0">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>0</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="2">
+                        <widget class="QCheckBox" name="checkBox_input_1">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>1</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="3">
+                        <widget class="QCheckBox" name="checkBox_input_2">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>2</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="4">
+                        <widget class="QCheckBox" name="checkBox_input_3">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>3</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="5">
+                        <widget class="QCheckBox" name="checkBox_input_4">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>4</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="6">
+                        <widget class="QCheckBox" name="checkBox_input_5">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>5</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="7">
+                        <widget class="QCheckBox" name="checkBox_input_6">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>6</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="8">
+                        <widget class="QCheckBox" name="checkBox_input_7">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>7</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="0">
+                        <widget class="QLabel" name="label_dout">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Output</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="1">
+                        <widget class="QCheckBox" name="checkBox_output_0">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>0</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="2">
+                        <widget class="QCheckBox" name="checkBox_output_1">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>1</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="3">
+                        <widget class="QCheckBox" name="checkBox_output_2">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>2</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="4">
+                        <widget class="QCheckBox" name="checkBox_output_3">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>3</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="5">
+                        <widget class="QCheckBox" name="checkBox_output_4">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>4</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="6">
+                        <widget class="QCheckBox" name="checkBox_output_5">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>5</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="7">
+                        <widget class="QCheckBox" name="checkBox_output_6">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>6</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="8">
+                        <widget class="QCheckBox" name="checkBox_output_7">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>7</string>
+                          </property>
+                        </widget>
+                      </item>
+                    </layout>
+                  </widget>
+                </item>
+              </layout>
+            </item>
+            <item>
+              <layout class="QVBoxLayout" name="rightCol" stretch="0,1">
+                <property name="spacing">
+                  <number>12</number>
+                </property>
+                <item>
+                  <widget class="QGroupBox" name="tcp_groupBox">
+                    <property name="font">
+                      <font>
+                        <bold>true</bold>
+                      </font>
+                    </property>
+                    <property name="title">
+                      <string>TCP (base frame)</string>
+                    </property>
+                    <layout class="QGridLayout" name="tcpGrid" columnstretch="0,1,1,0,0">
+                      <property name="leftMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="topMargin">
+                        <number>14</number>
+                      </property>
+                      <property name="rightMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="bottomMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="horizontalSpacing">
+                        <number>10</number>
+                      </property>
+                      <property name="verticalSpacing">
+                        <number>10</number>
+                      </property>
+                      <item row="0" column="1">
+                        <widget class="QLabel" name="label_hdr_tcp_cur">
+                          <property name="role" stdset="0">
+                            <string>hdr</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Current</string>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="2">
+                        <widget class="QLabel" name="label_hdr_tcp_tgt">
+                          <property name="role" stdset="0">
+                            <string>hdr</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Target</string>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="3" colspan="2">
+                        <widget class="QLabel" name="label_hdr_jog">
+                          <property name="role" stdset="0">
+                            <string>hdr</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Jog</string>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="0">
+                        <widget class="QLabel" name="label_x">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>X [mm]</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="1">
+                        <widget class="QLineEdit" name="txt_X">
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_X">
+                          <property name="minimum">
+                            <double>-2000.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>2000.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>10.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="3">
+                        <widget class="QPushButton" name="btn_x_m">
+                          <property name="toolTip">
+                            <string>Move -step along base X immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>-</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="4">
+                        <widget class="QPushButton" name="btn_x_p">
+                          <property name="toolTip">
+                            <string>Move +step along base X immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>+</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="0">
+                        <widget class="QLabel" name="label_y">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Y [mm]</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="1">
+                        <widget class="QLineEdit" name="txt_Y">
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_Y">
+                          <property name="minimum">
+                            <double>-2000.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>2000.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>10.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="3">
+                        <widget class="QPushButton" name="btn_y_m">
+                          <property name="toolTip">
+                            <string>Move -step along base Y immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>-</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="2" column="4">
+                        <widget class="QPushButton" name="btn_y_p">
+                          <property name="toolTip">
+                            <string>Move +step along base Y immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>+</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="3" column="0">
+                        <widget class="QLabel" name="label_z">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Z [mm]</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="3" column="1">
+                        <widget class="QLineEdit" name="txt_Z">
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="3" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_Z">
+                          <property name="minimum">
+                            <double>-2000.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>2000.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>10.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="3" column="3">
+                        <widget class="QPushButton" name="btn_z_m">
+                          <property name="toolTip">
+                            <string>Move -step along base Z immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>-</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="3" column="4">
+                        <widget class="QPushButton" name="btn_z_p">
+                          <property name="toolTip">
+                            <string>Move +step along base Z immediately</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>+</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="4" column="0">
+                        <widget class="QLabel" name="label_orx">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="toolTip">
+                            <string>Base-frame rotation vector [°] (same convention as the UR pendant)</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>RX [°]</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="4" column="1">
+                        <widget class="QLineEdit" name="txt_RX">
+                          <property name="toolTip">
+                            <string>Base-frame rotation vector [°] (same convention as the UR pendant)</string>
+                          </property>
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="4" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_RX">
+                          <property name="minimum">
+                            <double>-360.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>360.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>5.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="4" column="3">
+                        <widget class="QPushButton" name="btn_brx_m">
+                          <property name="toolTip">
+                            <string>Rotate -step around base X immediately (position fixed)</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>-</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="4" column="4">
+                        <widget class="QPushButton" name="btn_brx_p">
+                          <property name="toolTip">
+                            <string>Rotate +step around base X immediately (position fixed)</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>+</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="5" column="0">
+                        <widget class="QLabel" name="label_ory">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="toolTip">
+                            <string>Base-frame rotation vector [°] (same convention as the UR pendant)</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>RY [°]</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="5" column="1">
+                        <widget class="QLineEdit" name="txt_RY">
+                          <property name="toolTip">
+                            <string>Base-frame rotation vector [°] (same convention as the UR pendant)</string>
+                          </property>
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="5" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_RY">
+                          <property name="minimum">
+                            <double>-360.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>360.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>5.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="5" column="3">
+                        <widget class="QPushButton" name="btn_bry_m">
+                          <property name="toolTip">
+                            <string>Rotate -step around base Y immediately (position fixed)</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>-</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="5" column="4">
+                        <widget class="QPushButton" name="btn_bry_p">
+                          <property name="toolTip">
+                            <string>Rotate +step around base Y immediately (position fixed)</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>+</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="6" column="0">
+                        <widget class="QLabel" name="label_orz">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="toolTip">
+                            <string>Base-frame rotation vector [°] (same convention as the UR pendant)</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>RZ [°]</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="6" column="1">
+                        <widget class="QLineEdit" name="txt_RZ">
+                          <property name="toolTip">
+                            <string>Base-frame rotation vector [°] (same convention as the UR pendant)</string>
+                          </property>
+                          <property name="readOnly">
+                            <bool>true</bool>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="6" column="2">
+                        <widget class="QDoubleSpinBox" name="spin_RZ">
+                          <property name="minimum">
+                            <double>-360.0</double>
+                          </property>
+                          <property name="maximum">
+                            <double>360.0</double>
+                          </property>
+                          <property name="singleStep">
+                            <double>5.0</double>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="6" column="3">
+                        <widget class="QPushButton" name="btn_brz_m">
+                          <property name="toolTip">
+                            <string>Rotate -step around base Z immediately (position fixed)</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>-</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="6" column="4">
+                        <widget class="QPushButton" name="btn_brz_p">
+                          <property name="toolTip">
+                            <string>Rotate +step around base Z immediately (position fixed)</string>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>40</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>44</width>
+                              <height>16777215</height>
+                            </size>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>+</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="7" column="0">
+                        <widget class="QLabel" name="label_step">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Jog step</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="7" column="2">
+                        <widget class="QSpinBox" name="spinBox_xyz_step">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="suffix">
+                            <string> mm</string>
+                          </property>
+                          <property name="minimum">
+                            <number>1</number>
+                          </property>
+                          <property name="maximum">
+                            <number>100</number>
+                          </property>
+                          <property name="value">
+                            <number>10</number>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="8" column="0">
+                        <widget class="QLabel" name="label_rot_step">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Rot step</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="8" column="2">
+                        <widget class="QSpinBox" name="spinBox_rot_step">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="suffix">
+                            <string> °</string>
+                          </property>
+                          <property name="minimum">
+                            <number>1</number>
+                          </property>
+                          <property name="maximum">
+                            <number>180</number>
+                          </property>
+                          <property name="value">
+                            <number>10</number>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="9" column="0" colspan="5">
+                        <layout class="QHBoxLayout" name="tcpActions">
+                          <property name="spacing">
+                            <number>10</number>
+                          </property>
+                          <item>
+                            <widget class="QPushButton" name="btn_print_kinematrics">
+                              <property name="toolTip">
+                                <string>Print current TCP pose (4x4 matrix) to the terminal</string>
+                              </property>
+                              <property name="font">
+                                <font>
+                                  <bold>false</bold>
+                                </font>
+                              </property>
+                              <property name="text">
+                                <string>Print to terminal</string>
+                              </property>
+                            </widget>
+                          </item>
+                          <item>
+                            <widget class="QPushButton" name="btn_apply_kinematrics">
+                              <property name="toolTip">
+                                <string>Copy current pose (XYZ + RX/RY/RZ) into the target fields</string>
+                              </property>
+                              <property name="font">
+                                <font>
+                                  <bold>false</bold>
+                                </font>
+                              </property>
+                              <property name="text">
+                                <string>Current → Target</string>
+                              </property>
+                            </widget>
+                          </item>
+                        </layout>
+                      </item>
+                      <item row="10" column="0" colspan="5">
+                        <widget class="QPushButton" name="btn_moveL">
+                          <property name="toolTip">
+                            <string>Plan and move linearly to the target pose (position + orientation)</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <pointsize>11</pointsize>
+                              <bold>true</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>MoveL</string>
+                          </property>
+                        </widget>
+                      </item>
+                    </layout>
+                  </widget>
+                </item>
+                <item>
+                  <widget class="QGroupBox" name="speed_groupBox">
+                    <property name="font">
+                      <font>
+                        <bold>true</bold>
+                      </font>
+                    </property>
+                    <property name="title">
+                      <string>Robot Speed Slider</string>
+                    </property>
+                    <layout class="QGridLayout" name="speedGrid" columnstretch="0,1,0">
+                      <property name="leftMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="topMargin">
+                        <number>14</number>
+                      </property>
+                      <property name="rightMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="bottomMargin">
+                        <number>12</number>
+                      </property>
+                      <property name="horizontalSpacing">
+                        <number>10</number>
+                      </property>
+                      <property name="verticalSpacing">
+                        <number>10</number>
+                      </property>
+                      <item row="0" column="0">
+                        <widget class="QLabel" name="label_speed_actual_title">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Actual</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="1">
+                        <widget class="QLabel" name="label_speed_actual">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>—</string>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="0" column="2" rowspan="2">
+                        <widget class="QPushButton" name="btn_speed_apply">
+                          <property name="enabled">
+                            <bool>false</bool>
+                          </property>
+                          <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                            </sizepolicy>
+                          </property>
+                          <property name="minimumSize">
+                            <size>
+                              <width>100</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                          <property name="toolTip">
+                            <string>Send the Set value to the robot speed slider</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Apply</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="0">
+                        <widget class="QLabel" name="label_speed_slider">
+                          <property name="role" stdset="0">
+                            <string>cap</string>
+                          </property>
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="text">
+                            <string>Set</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item row="1" column="1">
+                        <widget class="QSpinBox" name="spinBox_velocity">
+                          <property name="font">
+                            <font>
+                              <bold>false</bold>
+                            </font>
+                          </property>
+                          <property name="suffix">
+                            <string> %</string>
+                          </property>
+                          <property name="minimum">
+                            <number>1</number>
+                          </property>
+                          <property name="maximum">
+                            <number>100</number>
+                          </property>
+                          <property name="value">
+                            <number>100</number>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                    </layout>
+                  </widget>
+                </item>
+              </layout>
+            </item>
+          </layout>
+        </item>
+      </layout>
+    </widget>
+    <widget class="QStatusBar" name="statusbar"/>
+  </widget>
+  <resources/>
+  <connections/>
+</ui>

@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ur_motion_panel</name>
+  <version>1.2.1</version>
+  <description>Qt6 GUI for UR robot jog control (MoveJ, MoveL, TCP rotate, DIO) via ur_robot_client</description>
+
+  <maintainer email="woo980711@gmail.com">hhanoo</maintainer>
+
+  <license>Apache-2.0</license>
+
+  <!-- ========================================================= -->
+  <!-- Build tool dependencies (빌드 시스템 의존성) -->
+  <!-- ========================================================= -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- ========================================================= -->
+  <!-- Core ROS2 dependencies (핵심 ROS2 의존성) -->
+  <!-- ========================================================= -->
+  <!-- * ROS 2 core client libraries (ROS 2 핵심 클라이언트 라이브러리) -->
+  <depend>rclcpp</depend>
+
+  <!-- * UR robot control client library (UR 로봇 제어 클라이언트 라이브러리) -->
+  <depend>ur_robot_client</depend>
+
+  <!-- * Matrix math for TCP rotation (TCP 회전 행렬 연산) -->
+  <depend>eigen</depend>
+
+  <!-- Qt6 (qt6-base-dev) is installed at the system level via docker/Dockerfile -->
+
+  <!-- ========================================================= -->
+  <!-- Test dependencies (테스트용 의존성) -->
+  <!-- ========================================================= -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <!-- ========================================================= -->
+  <!-- Export build type (빌드 타입 명시) -->
+  <!-- ========================================================= -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
