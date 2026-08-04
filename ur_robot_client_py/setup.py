@@ -7,7 +7,7 @@ setup(
     # Package metadata
     # =========================================================
     name=package_name,
-    version="1.2.1",
+    version="1.3.0",
     # =========================================================
     # Package discovery
     # Automatically find all Python packages in the directory
