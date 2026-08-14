@@ -30,6 +30,11 @@ class MoveItBackend : public MoveJBackend, public MoveLBackend {
     void moveCancel() override;
 
    private:
+    // Planner tuning (latency between consecutive commands vs. path quality)
+    static constexpr int    PLANNING_ATTEMPTS  = 3;      // OMPL waits for this many solutions, then hybridizes them
+    static constexpr double PLANNING_TIME      = 2.0;    // planner time budget [s]
+    static constexpr double CARTESIAN_EEF_STEP = 0.005;  // moveL waypoint spacing [m]
+
     rclcpp::Node::SharedPtr node_;
 
     // MoveIt interface (MoveIt 인터페이스) (planning group 이름을 자동 탐색한 뒤에 지연 생성하려는 설계)
@@ -44,6 +49,9 @@ class MoveItBackend : public MoveJBackend, public MoveLBackend {
 
     // Initialize MoveGroupInterface with correct planning group name
     bool initializeMoveGroup();
+
+    // Planner tuning, shared by both MoveGroupInterface creation paths
+    void applyPlannerSettings();
 
     // Transform pose from tool0_controller frame to tool0 frame
     // (tool0_controller 프레임에서 tool0 프레임으로 pose 변환)

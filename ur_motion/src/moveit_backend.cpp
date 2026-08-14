@@ -31,9 +31,11 @@ MoveItBackend::MoveItBackend(rclcpp::Node::SharedPtr node)
     } else {
         // Use provided planning group name
         move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(node_, planning_group_name_);
-        move_group_->setPlanningTime(5.0);
-        move_group_->setNumPlanningAttempts(5);
+        applyPlannerSettings();
     }
+
+    // Start the joint state monitor once, so the first motion command is not charged for it
+    move_group_->startStateMonitor();
 }
 
 bool MoveItBackend::initializeMoveGroup() {
@@ -77,8 +79,7 @@ bool MoveItBackend::initializeMoveGroup() {
 
         // 5) Initialize MoveGroupInterface --------------------
         move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(node_, planning_group_name_);
-        move_group_->setPlanningTime(5.0);       // planning max time
-        move_group_->setNumPlanningAttempts(5);  // planning max attempts
+        applyPlannerSettings();
 
         return true;
     } catch (const std::exception& e) {
@@ -87,19 +88,19 @@ bool MoveItBackend::initializeMoveGroup() {
     }
 }
 
+void MoveItBackend::applyPlannerSettings() {
+    move_group_->setPlanningTime(PLANNING_TIME);
+    move_group_->setNumPlanningAttempts(PLANNING_ATTEMPTS);
+}
+
 MotionResult MoveItBackend::moveJ(const std::vector<double>& joints, double vel) {
     if (!move_group_) {
         return {false, "MoveGroupInterface not initialized"};
     }
 
-    // 0) Ensure current state is updated (현재 상태 업데이트 확인)
-    // MoveIt needs to know the current robot state for planning
-    // (MoveIt은 경로 계획을 위해 현재 로봇 상태를 알아야 함)
+    // 0) Ensure the state monitor is running (started in the constructor, returns at once)
     try {
-        // Start state monitor to receive joint states (joint_states를 받기 위해 상태 모니터 시작)
         move_group_->startStateMonitor();
-        // Give it a moment to receive joint states (joint_states를 받을 시간 제공)
-        rclcpp::sleep_for(std::chrono::milliseconds(200));
     } catch (const std::exception& e) {
         RCLCPP_WARN(node_->get_logger(), "Failed to start state monitor: %s", e.what());
     }
@@ -177,14 +178,9 @@ MotionResult MoveItBackend::moveL(const std::array<double, 16>& T, double vel) {
         return {false, "MoveGroupInterface not initialized"};
     }
 
-    // 0) Ensure current state is updated (현재 상태 업데이트 확인)
-    // MoveIt needs to know the current robot state for planning
-    // (MoveIt은 경로 계획을 위해 현재 로봇 상태를 알아야 함)
+    // 0) Ensure the state monitor is running (started in the constructor, returns at once)
     try {
-        // Start state monitor to receive joint states (joint_states를 받기 위해 상태 모니터 시작)
         move_group_->startStateMonitor();
-        // Give it a moment to receive joint states (joint_states를 받을 시간 제공)
-        rclcpp::sleep_for(std::chrono::milliseconds(200));
     } catch (const std::exception& e) {
         RCLCPP_WARN(node_->get_logger(), "Failed to start state monitor: %s", e.what());
     }
@@ -224,15 +220,14 @@ MotionResult MoveItBackend::moveL(const std::array<double, 16>& T, double vel) {
 
     moveit_msgs::msg::RobotTrajectory trajectory;
 
-    const double eef_step       = 0.001;
     const double jump_threshold = 5.0;
 
     double fraction = 0.0;
     fraction        = move_group_->computeCartesianPath(
-               {target_pose},   // waypoints (목표 위치만 포함)
-               eef_step,        // eef_step = 1mm (직선 분해 간격: waypoint 간 최대 거리)
-               jump_threshold,  // jump_threshold = 0 (관절 점프 제한: 0 = 제한 없음)
-               trajectory);
+        {target_pose},       // waypoints (target pose only)
+        CARTESIAN_EEF_STEP,  // straight-line resolution
+        jump_threshold,      // joint jump limit between waypoints
+        trajectory);
 
     RCLCPP_INFO(node_->get_logger(), "Cartesian path planning fraction: %.3f (required: >= 0.999)", fraction);
 

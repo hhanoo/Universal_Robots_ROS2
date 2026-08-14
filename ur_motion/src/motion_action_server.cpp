@@ -25,10 +25,10 @@ class MotionActionServer : public rclcpp::Node {
         ABORTED     // Motion aborted due to error
     };
 
-    // Motion completion detection constants
+    // Motion settling guard — MoveIt execute() already blocks until the controller reports done
     static constexpr double                    VELOCITY_THRESHOLD = 0.01;  // rad/s - threshold for considering robot stopped
-    static constexpr double                    STABLE_DURATION    = 0.2;   // seconds - duration robot must be stable
-    static constexpr std::chrono::milliseconds POLL_INTERVAL{10};          // polling interval for motion check
+    static constexpr double                    STABLE_DURATION    = 0.05;  // seconds - duration robot must be stable
+    static constexpr std::chrono::milliseconds POLL_INTERVAL{5};           // polling interval for motion check
 
     // Action type aliases
     using MoveJ           = ur_motion::action::MoveJ;
