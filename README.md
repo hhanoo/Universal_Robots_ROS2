@@ -446,7 +446,7 @@ ros2 run ur_motion motion_action_server
 ros2 run ur_robot_client example_state       # 1. 읽기 전용 상태 모니터링 (연결 점검)
 ros2 run ur_robot_client example_movej       # 2. MoveJ 모션
 ros2 run ur_robot_client example_io_speed    # 3. I/O + 속도 제어
-ros2 run ur_robot_client example_pick_place  # 4. Pick & Place 통합
+ros2 run ur_robot_client example_pick_place  # 4. Pick & Place 통합 (blended MoveL 포함)
 
 # Python 예제
 ros2 run ur_robot_client_py example_state
@@ -632,10 +632,10 @@ ros2 launch ur_calibration calibration_correction.launch.py \
 
 ```yaml
 cartesian_limits:
-  max_trans_vel: 1.0   # [m/s]
-  max_trans_acc: 2.25  # [m/s^2]
-  max_trans_dec: -5.0  # [m/s^2]
-  max_rot_vel: 1.57    # [rad/s]
+  max_trans_vel: 1.0 # [m/s]
+  max_trans_acc: 2.25 # [m/s^2]
+  max_trans_dec: -5.0 # [m/s^2]
+  max_rot_vel: 1.57 # [rad/s]
 ```
 
 ### Docker 설정 (`docker/config.sh`)
@@ -675,29 +675,29 @@ LAUNCH_RVIZ="true"
 
 ### ROS2 액션 (ur_motion 제공)
 
-| Action    | 타입                     | 설명                                                                          |
-| --------- | ------------------------ | ----------------------------------------------------------------------------- |
-| `/move_j` | `ur_motion/action/MoveJ` | 관절 공간 모션. Goal: 관절값 6개(rad) + 속도 스케일 [0.05~1.0]                |
+| Action    | 타입                     | 설명                                                                                                                                                          |
+| --------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/move_j` | `ur_motion/action/MoveJ` | 관절 공간 모션. Goal: 관절값 6개(rad) + 속도 스케일 [0.05~1.0]                                                                                                |
 | `/move_l` | `ur_motion/action/MoveL` | 직교 공간 직선 모션. Goal: 4x4 T-matrix(row-major 16개) + 속도. via 경유점 배열(`via_tmatrix`/`via_r`/`via_velocity`)을 채우면 Pilz LIN 시퀀스로 blended 실행 |
 
 ### URRobotClient 주요 API
 
-| 기능           | C++                                        | Python                                         |
-| -------------- | ------------------------------------------ | ---------------------------------------------- |
-| 관절 모션      | `moveJ(joints, velocity)`                  | `move_j(joints, velocity)`                     |
-| 직선 모션      | `moveL(tmatrix, velocity)`                 | `move_l(tmatrix, velocity)`                    |
-| 블렌드 직선    | `moveL(via_T, via_r, via_vel, tmatrix, velocity)` | — (C++ 전용)                            |
-| 모션 취소      | `moveCancel()`                             | `move_cancel()`                                |
-| 속도 설정      | `setSpeedSlider(fraction)`                 | `set_speed_slider(value)`                      |
-| 속도 조회      | `getSpeedSlider()` / `getSpeedScaling()`   | `get_speed_slider()` / `get_speed_scaling()`   |
-| 디지털 출력    | `setDigitalOut(pin, value)`                | `set_digital_out(pin, value)`                  |
-| 디지털 조회    | `getDigitalIn(pin)` / `getDigitalOut(pin)` | `get_digital_in(pin)` / `get_digital_out(pin)` |
-| 관절 조회      | `getJointPositions()`                      | `get_joint_positions()`                        |
-| TCP 포즈       | `getTcpPose()`                             | `get_tcp_pose()`                               |
-| 연결/준비      | `isConnected()` / `waitRobotReady()`       | `is_connected()` / `wait_robot_ready()`        |
-| 제어권 상태    | `isProgramRunning()`                       | `is_program_running()`                         |
-| 로봇/안전 모드 | `getRobotMode()` / `getSafetyMode()`       | `get_robot_mode()` / `get_safety_mode()`       |
-| Pendant 모드   | `isRemoteControl()`                        | `is_remote_control()`                          |
+| 기능           | C++                                               | Python                                         |
+| -------------- | ------------------------------------------------- | ---------------------------------------------- |
+| 관절 모션      | `moveJ(joints, velocity)`                         | `move_j(joints, velocity)`                     |
+| 직선 모션      | `moveL(tmatrix, velocity)`                        | `move_l(tmatrix, velocity)`                    |
+| 블렌드 직선    | `moveL(via_T, via_r, via_vel, tmatrix, velocity)` | — (C++ 전용)                                   |
+| 모션 취소      | `moveCancel()`                                    | `move_cancel()`                                |
+| 속도 설정      | `setSpeedSlider(fraction)`                        | `set_speed_slider(value)`                      |
+| 속도 조회      | `getSpeedSlider()` / `getSpeedScaling()`          | `get_speed_slider()` / `get_speed_scaling()`   |
+| 디지털 출력    | `setDigitalOut(pin, value)`                       | `set_digital_out(pin, value)`                  |
+| 디지털 조회    | `getDigitalIn(pin)` / `getDigitalOut(pin)`        | `get_digital_in(pin)` / `get_digital_out(pin)` |
+| 관절 조회      | `getJointPositions()`                             | `get_joint_positions()`                        |
+| TCP 포즈       | `getTcpPose()`                                    | `get_tcp_pose()`                               |
+| 연결/준비      | `isConnected()` / `waitRobotReady()`              | `is_connected()` / `wait_robot_ready()`        |
+| 제어권 상태    | `isProgramRunning()`                              | `is_program_running()`                         |
+| 로봇/안전 모드 | `getRobotMode()` / `getSafetyMode()`              | `get_robot_mode()` / `get_safety_mode()`       |
+| Pendant 모드   | `isRemoteControl()`                               | `is_remote_control()`                          |
 
 상세 시그니처와 사용 패턴은 [ur_robot_client/README.md](ur_robot_client/README.md), [ur_robot_client_py/README.md](ur_robot_client_py/README.md) 참고.
 

@@ -18,12 +18,12 @@
 
 단계 순서대로: 연결 점검 → 기본 모션 → I/O → 통합 시퀀스.
 
-| 예제                 | 실행                                          | 내용                                            |
-| -------------------- | --------------------------------------------- | ----------------------------------------------- |
-| `example_state`      | `ros2 run ur_robot_client example_state`      | 1. 읽기 전용 상태 모니터링 (실로봇 연결 점검용) |
-| `example_movej`      | `ros2 run ur_robot_client example_movej`      | 2. HOME → TARGET → HOME 관절 공간 모션          |
-| `example_io_speed`   | `ros2 run ur_robot_client example_io_speed`   | 3. Speed slider 50/100% + DI 읽기 + DO 토글     |
-| `example_pick_place` | `ros2 run ur_robot_client example_pick_place` | 4. Pick & Place 통합 시퀀스 (모든 기능 사용)    |
+| 예제                 | 실행                                          | 내용                                                       |
+| -------------------- | --------------------------------------------- | ---------------------------------------------------------- |
+| `example_state`      | `ros2 run ur_robot_client example_state`      | 1. 읽기 전용 상태 모니터링 (실로봇 연결 점검용)            |
+| `example_movej`      | `ros2 run ur_robot_client example_movej`      | 2. HOME → TARGET → HOME 관절 공간 모션                     |
+| `example_io_speed`   | `ros2 run ur_robot_client example_io_speed`   | 3. Speed slider 50/100% + DI 읽기 + DO 토글                |
+| `example_pick_place` | `ros2 run ur_robot_client example_pick_place` | 4. Pick & Place 통합 시퀀스 (blended MoveL 포함 모든 기능) |
 
 실행 전 UR 제어 스택이 떠 있어야 합니다 — Docker 컨테이너에서 `run-all`, 또는 [all.launch.py](../all.launch.py) (루트 README 참고).
 
