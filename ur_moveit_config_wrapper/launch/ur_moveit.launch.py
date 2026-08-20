@@ -193,15 +193,15 @@ def launch_setup(context, *args, **kwargs):
 
     # Planning Configuration
     ompl_planning_pipeline_config = {
-        # move_group looks each name up under "planning_pipelines."
+        # humble reads each pipeline config at top level "<name>.*" (parent_namespace is a TODO)
         "planning_pipelines": ["ompl", "pilz_industrial_motion_planner"],
         "default_planning_pipeline": "ompl",
-        "planning_pipelines.ompl": {
+        "ompl": {
             "planning_plugin": "ompl_interface/OMPLPlanner",
             "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints""",
             "start_state_max_bounds_error": 0.1,
         },
-        "planning_pipelines.pilz_industrial_motion_planner": {
+        "pilz_industrial_motion_planner": {
             "planning_plugin": "pilz_industrial_motion_planner/CommandPlanner",
             "request_adapters": "",
             "default_planner_config": "LIN",
@@ -210,7 +210,7 @@ def launch_setup(context, *args, **kwargs):
         "capabilities": "pilz_industrial_motion_planner/MoveGroupSequenceAction pilz_industrial_motion_planner/MoveGroupSequenceService",
     }
     ompl_planning_yaml = load_yaml("ur_moveit_config", "config/ompl_planning.yaml")
-    ompl_planning_pipeline_config["planning_pipelines.ompl"].update(ompl_planning_yaml)
+    ompl_planning_pipeline_config["ompl"].update(ompl_planning_yaml)
 
     # Trajectory Execution Configuration
     controllers_yaml = load_yaml("ur_moveit_config", "config/controllers.yaml")

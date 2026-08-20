@@ -239,7 +239,8 @@ MotionResult MoveItBackend::moveL(const std::vector<std::array<double, 16>>& via
         seq_client_ = rclcpp_action::create_client<MoveGroupSequence>(node_, "sequence_move_group");
     }
     if (!seq_client_->wait_for_action_server(std::chrono::seconds(5))) {
-        return {false, "sequence_move_group action server not available - is the Pilz pipeline loaded?"};
+        RCLCPP_WARN(node_->get_logger(), "sequence_move_group unavailable - falling back to point-by-point MoveL");
+        return moveLPointByPoint(via_T, via_vel, target_T, target_vel);
     }
 
     // 2) One LIN item per via; the target closes the run
@@ -278,14 +279,35 @@ MotionResult MoveItBackend::moveL(const std::vector<std::array<double, 16>>& via
     seq_goal_handle_.reset();
 
     auto wrapped = result_future.get();
-    if (wrapped.code != rclcpp_action::ResultCode::SUCCEEDED) {
-        return {false, "sequence action did not succeed"};
+    const int ec = wrapped.result ? wrapped.result->response.error_code.val : 0;
+    if (wrapped.code == rclcpp_action::ResultCode::SUCCEEDED &&
+        ec == moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
+        return {true, "MoveL done (Pilz blended sequence)"};
     }
-    const auto& ec = wrapped.result->response.error_code;
-    if (ec.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS) {
-        return {false, "Pilz sequence failed (MoveItErrorCode " + std::to_string(ec.val) + ")"};
+
+    // Planning-stage failures abort before any motion - safe to degrade to the old behavior
+    const bool planning_failed = (ec == moveit_msgs::msg::MoveItErrorCodes::PLANNING_FAILED ||
+                                  ec == moveit_msgs::msg::MoveItErrorCodes::INVALID_MOTION_PLAN ||
+                                  ec == moveit_msgs::msg::MoveItErrorCodes::FAILURE);
+    if (wrapped.code != rclcpp_action::ResultCode::CANCELED && planning_failed) {
+        RCLCPP_WARN(node_->get_logger(),
+                    "Pilz sequence planning failed (code %d) - falling back to point-by-point MoveL", ec);
+        return moveLPointByPoint(via_T, via_vel, target_T, target_vel);
     }
-    return {true, "MoveL done (Pilz blended sequence)"};
+    return {false, "Pilz sequence failed (MoveItErrorCode " + std::to_string(ec) + ")"};
+}
+
+MotionResult MoveItBackend::moveLPointByPoint(const std::vector<std::array<double, 16>>& via_T,
+                                              const std::vector<double>&                 via_vel,
+                                              const std::array<double, 16>&              target_T,
+                                              double                                     target_vel) {
+    for (size_t i = 0; i < via_T.size(); ++i) {
+        MotionResult r = moveL(via_T[i], via_vel[i]);
+        if (!r.success) {
+            return r;
+        }
+    }
+    return moveL(target_T, target_vel);
 }
 
 moveit_msgs::msg::MotionSequenceItem MoveItBackend::makeLinItem(
@@ -304,6 +326,7 @@ moveit_msgs::msg::MotionSequenceItem MoveItBackend::makeLinItem(
     req.planner_id                      = "LIN";
     req.max_velocity_scaling_factor     = std::clamp(vel, 0.01, 1.0);
     req.max_acceleration_scaling_factor = std::clamp(vel, 0.01, 1.0);
+    req.allowed_planning_time           = 5.0;
     req.goal_constraints.push_back(
         kinematic_constraints::constructGoalConstraints(move_group_->getEndEffectorLink(), ps));
     return item;

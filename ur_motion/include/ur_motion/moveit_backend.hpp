@@ -72,6 +72,12 @@ class MoveItBackend : public MoveJBackend, public MoveLBackend {
     moveit_msgs::msg::MotionSequenceItem makeLinItem(
         const std::array<double, 16>& T, double vel, double radius_m);
 
+    // Fallback when sequence planning fails: old point-by-point behavior (stops at every point)
+    MotionResult moveLPointByPoint(
+        const std::vector<std::array<double, 16>>& via_T,
+        const std::vector<double>& via_vel,
+        const std::array<double, 16>& target_T, double target_vel);
+
     rclcpp_action::Client<MoveGroupSequence>::SharedPtr           seq_client_;
     rclcpp_action::ClientGoalHandle<MoveGroupSequence>::SharedPtr seq_goal_handle_;
 };
