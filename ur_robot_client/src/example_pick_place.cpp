@@ -5,6 +5,7 @@
  * Demonstrates:
  *   - MoveJ (joint space motion)
  *   - MoveL (Cartesian linear motion)
+ *   - Blended MoveL (via waypoints, Pilz LIN sequence)
  *   - Speed slider control
  *   - Digital I/O control
  *   - State monitoring
@@ -19,7 +20,7 @@
 
 using namespace std::chrono_literals;
 
-// Helper function to create T-matrix from position and rotation
+// Build a T-matrix from position and ZYX rotation
 std::array<double, 16> createTMatrix(double x, double y, double z,
                                      double rx, double ry, double rz) {
     std::array<double, 16> T;
@@ -56,8 +57,7 @@ std::array<double, 16> createTMatrix(double x, double y, double z,
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
-    // URRobotClient spins itself in a background executor thread,
-    // so no external executor is needed
+    // URRobotClient spins itself - no external executor needed
     auto client = std::make_shared<URRobotClient>();
 
     // Wait for robot connection
@@ -211,17 +211,29 @@ int main(int argc, char** argv) {
 
     std::this_thread::sleep_for(1s);
 
-    // ========== 8. MoveJ to Place Position ==========
+    // ========== 8. Blended MoveL to Place Position ==========
     RCLCPP_INFO(client->get_logger(), " ");
-    RCLCPP_INFO(client->get_logger(), "========== 8. MoveJ to Place Position ==========");
-    std::vector<double> place = {-0.5, -1.2, 1.0, -1.5, -1.57, -0.5};
+    RCLCPP_INFO(client->get_logger(), "========== 8. Blended MoveL to Place ==========");
 
+    // Stops only at the place pose (vias blend through)
+    std::vector<std::array<double, 16>> vias = {
+        createTMatrix(-0.4, 0.0, 0.45, M_PI, 0.0, 0.0),  // arc apex over the transfer
+        createTMatrix(-0.4, 0.2, 0.4, M_PI, 0.0, 0.0),   // above the place position
+    };
+    std::vector<double> via_r   = {0.05, 0.05};  // blend radii [m]
+    std::vector<double> via_vel = {0.2, 0.2};    // per-segment velocity scale
+
+    auto tmatrix_place = createTMatrix(
+        -0.4, 0.2, 0.2,  // Position mirrored from pick across the y axis
+        M_PI, 0.0, 0.0);
+
+    RCLCPP_INFO(client->get_logger(), "Transferring object through 2 vias in a single run...");
     {
-        auto result = client->moveJ(place, 0.3, 30.0).get();
+        auto result = client->moveL(vias, via_r, via_vel, tmatrix_place, 0.2, 60.0).get();
         if (result.success) {
-            RCLCPP_INFO(client->get_logger(), "✅ Reached Place position");
+            RCLCPP_INFO(client->get_logger(), "✅ Reached Place position (blended)");
         } else {
-            RCLCPP_ERROR(client->get_logger(), "❌ Failed to reach Place position: %s", result.message.c_str());
+            RCLCPP_ERROR(client->get_logger(), "❌ Blended MoveL failed: %s", result.message.c_str());
         }
     }
 
@@ -289,6 +301,7 @@ int main(int argc, char** argv) {
     RCLCPP_INFO(client->get_logger(), "  ✓ Speed slider control");
     RCLCPP_INFO(client->get_logger(), "  ✓ MoveJ (joint space motion)");
     RCLCPP_INFO(client->get_logger(), "  ✓ MoveL (Cartesian linear motion)");
+    RCLCPP_INFO(client->get_logger(), "  ✓ Blended MoveL (via waypoints)");
     RCLCPP_INFO(client->get_logger(), "  ✓ Digital I/O control");
     RCLCPP_INFO(client->get_logger(), "  ✓ State monitoring");
 
