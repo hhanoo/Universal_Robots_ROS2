@@ -52,6 +52,7 @@
 - [설정](#설정)
   - [컨트롤러 설정 (`ur_controllers.yaml`)](#컨트롤러-설정-ur_controllersyaml)
   - [Kinematics 캘리브레이션 (`calibration_kinematics.yaml`)](#kinematics-캘리브레이션-calibration_kinematicsyaml)
+  - [Pilz Cartesian 한계 (`pilz_cartesian_limits.yaml`)](#pilz-cartesian-한계-pilz_cartesian_limitsyaml)
   - [Docker 설정 (`docker/config.sh`)](#docker-설정-dockerconfigsh)
   - [Launch 인자](#launch-인자)
 - [API / 인터페이스](#api--인터페이스)
@@ -67,6 +68,7 @@
   - [5. MoveL 실패](#5-movel-실패)
   - [6. TCP Pose를 가져올 수 없음](#6-tcp-pose를-가져올-수-없음)
   - [7. RViz가 표시되지 않음 (Docker)](#7-rviz가-표시되지-않음-docker)
+  - [8. Blended MoveL 실패 (Pilz 시퀀스)](#8-blended-movel-실패-pilz-시퀀스)
 - [라이선스](#라이선스)
 - [Maintainer](#maintainer)
 
@@ -100,7 +102,7 @@ UR 협동로봇(ur3 ~ ur30)을 ROS2 환경에서 손쉽게 제어하기 위한 �
 
 ### 주요 구성요소
 
-- **ur_motion** (C++): MoveJ/MoveL Action Server. MoveIt2 백엔드로 충돌 회피 플래닝 후 궤적 실행
+- **ur_motion** (C++): MoveJ/MoveL Action Server. MoveIt2 백엔드로 충돌 회피 플래닝 후 궤적을 실행하며, via 경유 blended MoveL은 Pilz LIN 시퀀스로 처리
 - **ur_robot_client** (C++): `URRobotClient` 클라이언트 라이브러리 + 예제 4종. 모션/속도/I/O/상태 조회 + program watchdog (자체 executor 스레드)
 - **ur_robot_client_py** (Python): 동일 기능의 Python 클라이언트 라이브러리 (non-Node 클래스, Node 주입, async/await 기반) + program watchdog
 - **ur_motion_panel** (C++/Qt6): `URRobotClient` 기반 조그 GUI. MoveJ, 6자유도 TCP 타겟 MoveL(base 좌표계 XYZ+회전벡터), XYZ/회전 조그(base·tool 프레임), STOP MOTION, 디지털 I/O, 스피드 슬라이더
@@ -120,6 +122,8 @@ UR 협동로봇(ur3 ~ ur30)을 ROS2 환경에서 손쉽게 제어하기 위한 �
 ## 주요 기능
 
 **MoveJ / MoveL Action**: 관절 공간(MoveJ)·직교 공간 직선(MoveL) 모션을 ROS2 Action으로 제공하며 MoveIt2 플래닝·충돌 검사를 백엔드로 사용
+
+**Blended MoveL (Pilz LIN 시퀀스)**: via 경유점들을 blend 반경으로 정지 없이 통과하고 최종 타겟에서만 정지하는 연속 직선 모션 — `/move_l` Goal의 via 배열이 비어 있으면 기존 단일 MoveL로 동작 (클라이언트 API는 C++ 전용)
 
 **C++ / Python 클라이언트**: 동일 기능의 `URRobotClient` 클래스를 양쪽 언어로 제공하며 Action/Service 호출을 `moveJ()`, `setSpeedSlider()` 같은 메서드로 추상화
 
@@ -176,6 +180,7 @@ UR 협동로봇(ur3 ~ ur30)을 ROS2 환경에서 손쉽게 제어하기 위한 �
 **데이터 흐름**
 
 [제어 흐름] moveJ/moveL → `/move_j`·`/move_l` Action → MoveIt2 플래닝 → UR Driver → Robot  
+[블렌드 흐름] moveL(via 배열) → `/move_l` Action → Pilz LIN 시퀀스(`sequence_move_group`) → UR Driver → Robot  
 [상태 흐름] Robot → UR Driver → joint_states·TF·io_states·speed_scaling → URRobotClient  
 [I/O 흐름] setDigitalOut/setSpeedSlider → io_and_status_controller Service → UR Driver  
 [워치독 흐름] 프로그램 중단·PAUSE 감지 → 로봇 복구(RUNNING+NORMAL) 대기 → resend_robot_program → 제어권 회복
@@ -205,6 +210,7 @@ Universal_Robots_ROS2/
 │
 ├── ur_moveit_config_wrapper/                # MoveIt2 설정 래퍼
 │   ├── config/ur_servo.yaml                 # MoveIt Servo 설정
+│   ├── config/pilz_cartesian_limits.yaml    # Pilz LIN 속도·가속 한계
 │   └── launch/ur_moveit.launch.py
 │
 ├── ur_description_wrapper/                  # 로봇 모델 래퍼
@@ -300,6 +306,7 @@ ros2 launch src/Universal_Robots_ROS2/all.launch.py \
 - `ros-humble-ur` — UR 공식 드라이버 (ur_msgs, ur_dashboard_msgs, ur_calibration 포함)
 - `ros-humble-ros2-control` / `ros-humble-ros2-controllers` — 컨트롤러 프레임워크
 - MoveIt2 (Humble) — 모션 플래닝 (`ros-humble-ur` 의존성으로 함께 설치)
+- `ros-humble-pilz-industrial-motion-planner` — blended MoveL의 LIN 시퀀스 플래닝
 
 **Python 라이브러리:**
 
@@ -364,7 +371,8 @@ sudo apt update
 sudo apt install -y \
   ros-humble-ur \
   ros-humble-ros2-control \
-  ros-humble-ros2-controllers
+  ros-humble-ros2-controllers \
+  ros-humble-pilz-industrial-motion-planner
 ```
 
 ---
@@ -571,6 +579,16 @@ client->setSpeedSlider(0.5).get();
 client->setDigitalOut(0, true).get();
 ```
 
+via 경유점이 있는 blended MoveL (C++ 전용):
+
+```cpp
+// via를 blend 반경으로 정지 없이 통과하고 T_target에서만 정지
+std::vector<std::array<double, 16>> vias  = {T1, T2};
+std::vector<double>                 via_r = {0.05, 0.05};  // blend 반경 [m], 모두 > 0
+std::vector<double>                 via_v = {0.5, 0.5};    // 구간별 속도 스케일
+auto result = client->moveL(vias, via_r, via_v, T_target, 0.5).get();
+```
+
 자세한 API는 [ur_robot_client/README.md](ur_robot_client/README.md), [ur_robot_client_py/README.md](ur_robot_client_py/README.md)를 참고하세요.
 
 ### 5. Program Watchdog 동작
@@ -606,6 +624,18 @@ client->setDigitalOut(0, true).get();
 ros2 launch ur_calibration calibration_correction.launch.py \
     robot_ip:=<ROBOT_IP> \
     target_filename:=<...>/ur_description_wrapper/config/calibration_kinematics.yaml
+```
+
+### Pilz Cartesian 한계 (`pilz_cartesian_limits.yaml`)
+
+[ur_moveit_config_wrapper/config/pilz_cartesian_limits.yaml](ur_moveit_config_wrapper/config/pilz_cartesian_limits.yaml)이 blended MoveL(LIN)의 TCP 속도·가속 상한을 정의하며, 실제 속도는 요청의 `velocity`/`via_velocity` 스케일이 이 한계 아래에서 결정.
+
+```yaml
+cartesian_limits:
+  max_trans_vel: 1.0   # [m/s]
+  max_trans_acc: 2.25  # [m/s^2]
+  max_trans_dec: -5.0  # [m/s^2]
+  max_rot_vel: 1.57    # [rad/s]
 ```
 
 ### Docker 설정 (`docker/config.sh`)
@@ -645,10 +675,10 @@ LAUNCH_RVIZ="true"
 
 ### ROS2 액션 (ur_motion 제공)
 
-| Action    | 타입                     | 설명                                                           |
-| --------- | ------------------------ | -------------------------------------------------------------- |
-| `/move_j` | `ur_motion/action/MoveJ` | 관절 공간 모션. Goal: 관절값 6개(rad) + 속도 스케일 [0.05~1.0] |
-| `/move_l` | `ur_motion/action/MoveL` | 직교 공간 직선 모션. Goal: 4x4 T-matrix(row-major 16개) + 속도 |
+| Action    | 타입                     | 설명                                                                          |
+| --------- | ------------------------ | ----------------------------------------------------------------------------- |
+| `/move_j` | `ur_motion/action/MoveJ` | 관절 공간 모션. Goal: 관절값 6개(rad) + 속도 스케일 [0.05~1.0]                |
+| `/move_l` | `ur_motion/action/MoveL` | 직교 공간 직선 모션. Goal: 4x4 T-matrix(row-major 16개) + 속도. via 경유점 배열(`via_tmatrix`/`via_r`/`via_velocity`)을 채우면 Pilz LIN 시퀀스로 blended 실행 |
 
 ### URRobotClient 주요 API
 
@@ -656,6 +686,7 @@ LAUNCH_RVIZ="true"
 | -------------- | ------------------------------------------ | ---------------------------------------------- |
 | 관절 모션      | `moveJ(joints, velocity)`                  | `move_j(joints, velocity)`                     |
 | 직선 모션      | `moveL(tmatrix, velocity)`                 | `move_l(tmatrix, velocity)`                    |
+| 블렌드 직선    | `moveL(via_T, via_r, via_vel, tmatrix, velocity)` | — (C++ 전용)                            |
 | 모션 취소      | `moveCancel()`                             | `move_cancel()`                                |
 | 속도 설정      | `setSpeedSlider(fraction)`                 | `set_speed_slider(value)`                      |
 | 속도 조회      | `getSpeedSlider()` / `getSpeedScaling()`   | `get_speed_slider()` / `get_speed_scaling()`   |
@@ -816,6 +847,21 @@ qt.qpa.xcb: could not connect to display
 xhost +local:docker
 ./docker/run.sh
 ```
+
+### 8. Blended MoveL 실패 (Pilz 시퀀스)
+
+증상:
+
+```
+sequence_move_group action server not available - is the Pilz pipeline loaded?
+```
+
+해결:
+
+- 이 저장소의 [ur_moveit.launch.py](ur_moveit_config_wrapper/launch/ur_moveit.launch.py)로 MoveIt을 실행했는지 확인 (Pilz 파이프라인과 시퀀스 capability를 여기서 등록)
+- `ros-humble-pilz-industrial-motion-planner` 설치 여부 확인 (Docker 이미지에는 포함)
+
+> `via blend radius must be > 0` 또는 `Pilz sequence failed` 오류는 `via_r`이 모두 0보다 큰지, blend 반경이 인접 구간 길이보다 작은지 확인하세요.
 
 ---
 
