@@ -7,8 +7,10 @@
 
 #include <array>
 #include <memory>
+#include <moveit_msgs/action/move_group_sequence.hpp>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <vector>
 
@@ -26,6 +28,13 @@ class MoveItBackend : public MoveJBackend, public MoveLBackend {
     // Cartesian linear move using MoveIt (MoveIt 기반 직선 이동)
     MotionResult moveL(const std::array<double, 16>& T, double vel) override;
 
+    // Blended Cartesian run using the Pilz sequence action (Pilz 시퀀스 기반 블렌드 직선 이동)
+    MotionResult moveL(
+        const std::vector<std::array<double, 16>>& via_T,
+        const std::vector<double>&                 via_r,
+        const std::vector<double>&                 via_vel,
+        const std::array<double, 16>& target_T, double target_vel) override;
+
     // Cancel motion
     void moveCancel() override;
 
@@ -37,7 +46,7 @@ class MoveItBackend : public MoveJBackend, public MoveLBackend {
 
     rclcpp::Node::SharedPtr node_;
 
-    // MoveIt interface (MoveIt 인터페이스) (planning group 이름을 자동 탐색한 뒤에 지연 생성하려는 설계)
+    // Created only after the planning group name is known
     std::unique_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
 
     // Planning group name
@@ -47,15 +56,24 @@ class MoveItBackend : public MoveJBackend, public MoveLBackend {
     std::shared_ptr<tf2_ros::Buffer>            tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
-    // Initialize MoveGroupInterface with correct planning group name
+    // Auto-detect a planning group and create the interface
     bool initializeMoveGroup();
 
-    // Planner tuning, shared by both MoveGroupInterface creation paths
+    // Planner tuning shared by both creation paths
     void applyPlannerSettings();
 
     // Transform pose from tool0_controller frame to tool0 frame
-    // (tool0_controller 프레임에서 tool0 프레임으로 pose 변환)
     geometry_msgs::msg::Pose transformPoseToMoveItFrame(const geometry_msgs::msg::Pose& pose);
+
+    // ----- Pilz blended sequence (only touched when vias are present) -----
+    using MoveGroupSequence = moveit_msgs::action::MoveGroupSequence;
+
+    // One LIN segment ending at T; radius 0 = exact stop
+    moveit_msgs::msg::MotionSequenceItem makeLinItem(
+        const std::array<double, 16>& T, double vel, double radius_m);
+
+    rclcpp_action::Client<MoveGroupSequence>::SharedPtr           seq_client_;
+    rclcpp_action::ClientGoalHandle<MoveGroupSequence>::SharedPtr seq_goal_handle_;
 };
 
 }  // namespace ur_motion

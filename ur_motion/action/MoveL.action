@@ -1,6 +1,10 @@
 # Goal
 float64[16] target_tmatrix   # 4x4 transform (row-major)
 float64 velocity             # TCP velocity [0.05 ~ 1.0]
+# Blend waypoints crossed before the target (empty = plain single-goal MoveL)
+float64[] via_tmatrix        # N x 16 row-major transforms
+float64[] via_r              # N blend radii [m], all > 0
+float64[] via_velocity       # N per-segment velocities [0.05 ~ 1.0]
 
 ---
 # Result

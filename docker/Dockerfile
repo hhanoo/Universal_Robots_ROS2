@@ -52,6 +52,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-ur \
     && rm -rf /var/lib/apt/lists/*
 
+# - Pilz planner (blended MoveL sequences via MoveGroupSequence)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-${ROS_DISTRO}-pilz-industrial-motion-planner \
+    && rm -rf /var/lib/apt/lists/*
+
 # =========================================================================
 # C++ Build Dependencies
 # =========================================================================

@@ -30,6 +30,13 @@ class MoveLBackend {
     virtual MotionResult moveL(
         const std::array<double, 16>& T, double vel) = 0;
 
+    // Blended run - stops only at the target
+    virtual MotionResult moveL(
+        const std::vector<std::array<double, 16>>& via_T,
+        const std::vector<double>&                 via_r,
+        const std::vector<double>&                 via_vel,
+        const std::array<double, 16>& target_T, double target_vel) = 0;
+
     virtual void moveCancel() = 0;
 };
 

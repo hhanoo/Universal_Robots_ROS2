@@ -160,8 +160,7 @@ def launch_setup(context, *args, **kwargs):
             ),
             " ",
             "name:=",
-            # Also ur_type parameter could be used but then the planning group names in yaml
-            # configs has to be updated!
+            # Fixed "ur" - the yaml planning group names assume it
             "ur",
             " ",
             "prefix:=",
@@ -187,21 +186,35 @@ def launch_setup(context, *args, **kwargs):
             os.path.join("config", str(moveit_joint_limits_file.perform(context))),
         )
     }
+    # Pilz reads its Cartesian ceilings from this namespace
+    robot_description_planning["robot_description_planning"].update(
+        load_yaml("ur_moveit_config_wrapper", "config/pilz_cartesian_limits.yaml")
+    )
 
     # Planning Configuration
     ompl_planning_pipeline_config = {
-        "move_group": {
+        # move_group looks each name up under "planning_pipelines."
+        "planning_pipelines": ["ompl", "pilz_industrial_motion_planner"],
+        "default_planning_pipeline": "ompl",
+        "planning_pipelines.ompl": {
             "planning_plugin": "ompl_interface/OMPLPlanner",
             "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints""",
             "start_state_max_bounds_error": 0.1,
-        }
+        },
+        "planning_pipelines.pilz_industrial_motion_planner": {
+            "planning_plugin": "pilz_industrial_motion_planner/CommandPlanner",
+            "request_adapters": "",
+            "default_planner_config": "LIN",
+        },
+        # Sequence endpoints for the blended-MoveL path
+        "capabilities": "pilz_industrial_motion_planner/MoveGroupSequenceAction pilz_industrial_motion_planner/MoveGroupSequenceService",
     }
     ompl_planning_yaml = load_yaml("ur_moveit_config", "config/ompl_planning.yaml")
-    ompl_planning_pipeline_config["move_group"].update(ompl_planning_yaml)
+    ompl_planning_pipeline_config["planning_pipelines.ompl"].update(ompl_planning_yaml)
 
     # Trajectory Execution Configuration
     controllers_yaml = load_yaml("ur_moveit_config", "config/controllers.yaml")
-    # the scaled_joint_trajectory_controller does not work on fake hardware
+    # The scaled JTC does not work on fake hardware
     change_controllers = context.perform_substitution(use_sim_time)
     if change_controllers == "true":
         controllers_yaml["scaled_joint_trajectory_controller"]["default"] = False
@@ -217,7 +230,7 @@ def launch_setup(context, *args, **kwargs):
         "trajectory_execution.allowed_execution_duration_scaling": 1.2,
         "trajectory_execution.allowed_goal_duration_margin": 0.5,
         "trajectory_execution.allowed_start_tolerance": 0.01,
-        # Execution time monitoring can be incompatible with the scaled JTC
+        # Duration monitoring may clash with the scaled JTC
         "trajectory_execution.execution_duration_monitoring": False,
     }
 
@@ -277,8 +290,7 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    # Servo node for realtime control
-    # Use wrapper's ur_servo.yaml with improved collision_check_rate
+    # Servo node using the wrapper's ur_servo.yaml (higher collision_check_rate)
     servo_yaml = load_yaml("ur_moveit_config_wrapper", "config/ur_servo.yaml")
     servo_params = {"moveit_servo": servo_yaml}
     servo_node = Node(

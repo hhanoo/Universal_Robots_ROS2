@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <memory>
@@ -69,10 +70,6 @@ class MotionActionServer : public rclcpp::Node {
         setupMoveItParameters();
 
         // Initialize MoveItBackend for both MoveJ and MoveL
-        // MoveItBackend supports both moveJ() (joint space) and moveL() (Cartesian space)
-        // with collision avoidance and path planning
-        // (MoveJ와 MoveL 모두를 위한 MoveItBackend 초기화)
-        // (MoveItBackend는 moveJ(관절 공간)와 moveL(직교 공간) 모두 지원하며 충돌 회피 및 경로 계획 기능 제공)
         try {
             motion_backend_ = std::make_shared<MoveItBackend>(shared_from_this());
             RCLCPP_INFO(get_logger(), "MoveItBackend initialized for both MoveJ and MoveL");
@@ -85,8 +82,7 @@ class MotionActionServer : public rclcpp::Node {
 
     // Setup MoveIt required parameters
     void setupMoveItParameters() {
-        // Declare MoveIt parameters if not already declared
-        // These parameters should be set by launch file or other nodes ()
+        // Declared empty when the launch file did not set them
         if (!has_parameter("robot_description")) {
             declare_parameter<std::string>("robot_description", "");
         }
@@ -269,8 +265,25 @@ class MotionActionServer : public rclcpp::Node {
         // Get goal
         const auto goal = goal_handle->get_goal();
 
-        // Send MoveL command using MoveItBackend
-        auto motion_result = motion_backend_->moveL(goal->target_tmatrix, goal->velocity);
+        // Send MoveL command using MoveItBackend (blended run when vias are present)
+        MotionResult motion_result;
+        if (goal->via_tmatrix.empty()) {
+            motion_result = motion_backend_->moveL(goal->target_tmatrix, goal->velocity);
+        } else if (goal->via_tmatrix.size() % 16 != 0 ||
+                   goal->via_r.size() != goal->via_tmatrix.size() / 16 ||
+                   goal->via_velocity.size() != goal->via_r.size()) {
+            abortGoal(goal_handle, "MoveL via arrays malformed (N x 16 / N / N expected)");
+            return;
+        } else {
+            const size_t                        n = goal->via_tmatrix.size() / 16;
+            std::vector<std::array<double, 16>> vias(n);
+            for (size_t i = 0; i < n; ++i)
+                std::copy_n(goal->via_tmatrix.begin() + i * 16, 16, vias[i].begin());
+            std::vector<double> via_r(goal->via_r.begin(), goal->via_r.end());
+            std::vector<double> via_vel(goal->via_velocity.begin(), goal->via_velocity.end());
+            motion_result = motion_backend_->moveL(vias, via_r, via_vel,
+                                                   goal->target_tmatrix, goal->velocity);
+        }
 
         // Handle motion result
         if (!motion_result.success) {

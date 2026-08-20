@@ -58,9 +58,7 @@ URRobotClient::URRobotClient()
         10,
         std::bind(&URRobotClient::ioStatesCallback, this, std::placeholders::_1));
 
-    // Initialize Program Watchdog
-    // Driver publishes these as latched (transient_local) and only on change,
-    // so the subscription QoS must match to receive the last value.
+    // Watchdog subs: match the driver's latched publisher QoS
     auto latched_qos = rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local();
 
     program_running_sub_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -225,8 +223,7 @@ uint8_t URRobotClient::getSafetyMode() const {
  * @return 6 joint positions in radians
  */
 std::array<double, 6> URRobotClient::getJointPositions() const {
-    // Copy the shared_ptr under the lock so the message stays alive even if
-    // jointStateCallback swaps in a new one while we read it.
+    // Copy under the lock: the callback may swap the message
     sensor_msgs::msg::JointState::SharedPtr joint_state;
     rclcpp::Time                            joint_state_time;
     {
@@ -472,6 +469,15 @@ std::future<URRobotClient::MotionResult> URRobotClient::moveJ(
  */
 std::future<URRobotClient::MotionResult> URRobotClient::moveL(
     const std::array<double, 16>& tmatrix, double velocity, double timeout) {
+    // Plain single-goal MoveL = blended run with no vias
+    return moveL({}, {}, {}, tmatrix, velocity, timeout);
+}
+
+std::future<URRobotClient::MotionResult> URRobotClient::moveL(
+    const std::vector<std::array<double, 16>>& via_tmatrix,
+    const std::vector<double>&                 via_r,
+    const std::vector<double>&                 via_velocity,
+    const std::array<double, 16>& tmatrix, double velocity, double timeout) {
     // Create promise and future
     auto promise = std::make_shared<std::promise<MotionResult>>();
     auto future  = promise->get_future();
@@ -491,8 +497,13 @@ std::future<URRobotClient::MotionResult> URRobotClient::moveL(
     auto goal           = ur_motion::action::MoveL::Goal();
     goal.target_tmatrix = tmatrix;
     goal.velocity       = velocity;
+    for (const auto& T : via_tmatrix)
+        goal.via_tmatrix.insert(goal.via_tmatrix.end(), T.begin(), T.end());
+    goal.via_r        = via_r;
+    goal.via_velocity = via_velocity;
 
-    RCLCPP_INFO(this->get_logger(), "Sending MoveL goal: velocity=%.2f", velocity);
+    RCLCPP_INFO(this->get_logger(), "Sending MoveL goal: velocity=%.2f, vias=%zu",
+                velocity, via_tmatrix.size());
 
     // Create timeout timer
     *timeout_timer = this->create_wall_timer(
@@ -1014,16 +1025,13 @@ void URRobotClient::safetyModeCallback(const ur_dashboard_msgs::msg::SafetyMode:
  * program resumed.
  */
 void URRobotClient::autoRegainControl() {
-    // Periodic Remote/Local poll for state queries (every 10 ticks = 5s).
+    // Periodic Remote/Local poll for state queries (every 10 ticks = 5s)
     // Runs regardless of program state so isRemoteControl() stays fresh.
     if (watchdog_tick_++ % 10 == 0) {
         checkRemoteControl();
     }
 
-    // Armed only after the first program state message (stays dormant on fake HW).
-    // program_maybe_paused_ overrides program_running_==true: e-stop leaves the
-    // program PAUSED (not stopped), so robot_program_running stays true and this
-    // check must not block recovery in that case.
+    // E-stop only pauses - robot_program_running stays true
     if (!program_state_received_ || (program_running_ && !program_maybe_paused_)) {
         return;
     }

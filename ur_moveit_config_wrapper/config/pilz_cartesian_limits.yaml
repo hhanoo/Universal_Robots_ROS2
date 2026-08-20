@@ -1,0 +1,8 @@
+# Pilz planner Cartesian limits - LIN/CIRC time parameterization ceilings.
+# Requests scale below these via max_velocity_scaling_factor; values follow the
+# MoveIt reference config and sit well under the UR10e's rated TCP limits.
+cartesian_limits:
+  max_trans_vel: 1.0 # [m/s]
+  max_trans_acc: 2.25 # [m/s^2]
+  max_trans_dec: -5.0 # [m/s^2]
+  max_rot_vel: 1.57 # [rad/s]
