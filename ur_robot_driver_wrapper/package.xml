@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>ur_robot_driver_wrapper</name>
-  <version>1.4.0</version>
+  <version>1.4.1</version>
   <description>UR Driver Wrapper</description>
 
   <maintainer email="woo980711@gmail.com">hhanoo</maintainer>
