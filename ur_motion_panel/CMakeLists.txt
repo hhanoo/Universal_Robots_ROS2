@@ -26,7 +26,13 @@ find_package(ur_robot_client REQUIRED)
 # External dependencies
 # =========================================================
 # * Qt6 (Widgets: GUI, Concurrent: motion worker threads)
-find_package(Qt6 REQUIRED COMPONENTS Widgets Concurrent)
+#   Optional: hosts without Qt6 (headless consumers) get an empty package
+find_package(Qt6 QUIET COMPONENTS Widgets Concurrent)
+if(NOT Qt6_FOUND)
+  message(STATUS "Qt6 not found; skipping ${PROJECT_NAME}")
+  ament_package()
+  return()
+endif()
 
 # * Eigen3 for TCP rotation math
 find_package(Eigen3 REQUIRED)

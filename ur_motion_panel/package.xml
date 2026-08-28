@@ -27,6 +27,7 @@
   <depend>eigen</depend>
 
   <!-- Qt6 (qt6-base-dev) is installed at the system level via docker/Dockerfile -->
+  <!-- Without Qt6 the CMake build skips this package (see CMakeLists.txt) -->
 
   <!-- ========================================================= -->
   <!-- Test dependencies (테스트용 의존성) -->

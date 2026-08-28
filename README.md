@@ -105,7 +105,7 @@ UR 협동로봇(ur3 ~ ur30)을 ROS2 환경에서 손쉽게 제어하기 위한 �
 - **ur_motion** (C++): MoveJ/MoveL Action Server. MoveIt2 백엔드로 충돌 회피 플래닝 후 궤적을 실행하며, via 경유 blended MoveL은 Pilz LIN 시퀀스로 처리
 - **ur_robot_client** (C++): `URRobotClient` 클라이언트 라이브러리 + 예제 4종. 모션/속도/I/O/상태 조회 + program watchdog (자체 executor 스레드)
 - **ur_robot_client_py** (Python): 동일 기능의 Python 클라이언트 라이브러리 (non-Node 클래스, Node 주입, async/await 기반) + program watchdog
-- **ur_motion_panel** (C++/Qt6): `URRobotClient` 기반 조그 GUI. MoveJ, 6자유도 TCP 타겟 MoveL(base 좌표계 XYZ+회전벡터), XYZ/회전 조그(base·tool 프레임), STOP MOTION, 디지털 I/O, 스피드 슬라이더
+- **ur_motion_panel** (C++/Qt6): `URRobotClient` 기반 조그 GUI. MoveJ, 6자유도 TCP 타겟 MoveL(base 좌표계 XYZ+회전벡터), XYZ/회전 조그(base·tool 프레임), STOP MOTION, 디지털 I/O, 스피드 슬라이더. Qt6가 없는 환경에서는 빌드 시 자동으로 건너뜀
 - **ur_robot_driver_wrapper**: UR ROS2 Driver 브링업 래퍼 (드라이버 + 컨트롤러 + 대시보드)
 - **ur_moveit_config_wrapper**: MoveIt2 설정/실행 래퍼
 - **ur_description_wrapper**: URDF/Xacro + kinematics 캘리브레이션 설정
@@ -458,6 +458,8 @@ ros2 run ur_robot_client_py example_pick_place
 ### GUI 실행 (ur_motion_panel)
 
 UR 스택과 같은 컨테이너에서 실행 (별도 DDS 설정 불요).
+
+> **선택 의존성**: Qt6(`qt6-base-dev`)가 없는 환경에서는 `ur_motion_panel`이 빈 패키지로 빌드되며(CMake `STATUS` 메시지로 건너뜀을 알림), 다른 패키지 빌드에는 영향이 없음. 이 저장소의 Docker 이미지에는 Qt6가 포함되어 있음.
 
 > **필수**: GUI에서 **Connect 버튼을 누르기 전에** `run-all`(UR Driver + MoveIt + Motion Server) 전체 스택이 먼저 실행·연결 완료되어 있어야 함.  
 > 스택이 없으면 Connect가 약 2초 폴링 후 실패.
