@@ -185,6 +185,18 @@ UR 협동로봇(ur3 ~ ur30)을 ROS2 환경에서 손쉽게 제어하기 위한 �
 [I/O 흐름] setDigitalOut/setSpeedSlider → io_and_status_controller Service → UR Driver  
 [워치독 흐름] 프로그램 중단·PAUSE 감지 → 로봇 복구(RUNNING+NORMAL) 대기 → resend_robot_program → 제어권 회복
 
+**상세 다이어그램**
+
+패키지 간 연결과 MoveIt2 내부의 OMPL·Pilz 파이프라인 구성까지 담은 아키텍처 다이어그램. 가이드 뷰로 경로를 나눠 볼 수 있는 인터랙티브 버전은 [docs/architecture.html](docs/architecture.html).
+
+![시스템 아키텍처](docs/architecture.png)
+
+[블렌드 흐름]을 `sequence_move_group` 액션 호출 단위로 펼친 시퀀스 다이어그램. Pilz LIN 플래닝부터 RTDE 전송, 실패 시 점대점 MoveL 폴백까지 포함. 인터랙티브 버전은 [docs/movel-sequence.html](docs/movel-sequence.html).
+
+![Blended MoveL 시퀀스](docs/movel-sequence.png)
+
+GitHub 웹은 저장소 안의 HTML을 렌더링하지 않으므로, 인터랙티브 다이어그램은 클론 후 브라우저로 열어야 사용 가능 (`xdg-open docs/architecture.html`).
+
 ---
 
 ## 프로젝트 구조
@@ -196,7 +208,12 @@ Universal_Robots_ROS2/
 ├── extract_robot_calibration.sh             # 로봇 kinematics 캘리브레이션 추출
 │
 ├── .github/workflows/release.yml            # v* 태그 push 시 GitHub Release 자동 생성
-├── docs/ur_motion_panel.png                 # GUI 스크린샷
+├── docs/
+│   ├── architecture.html                    # 아키텍처 다이어그램 (인터랙티브)
+│   ├── movel-sequence.html                  # blended MoveL 시퀀스 (인터랙티브)
+│   ├── architecture.png                     # 아키텍처 다이어그램 캡처
+│   ├── movel-sequence.png                   # 시퀀스 다이어그램 캡처
+│   └── ur_motion_panel.png                  # GUI 스크린샷
 │
 ├── docker/
 │   ├── Dockerfile                           # ROS2 Humble + UR Driver + MoveIt2 이미지
@@ -862,6 +879,7 @@ sequence_move_group action server not available - is the Pilz pipeline loaded?
 
 - 이 저장소의 [ur_moveit.launch.py](ur_moveit_config_wrapper/launch/ur_moveit.launch.py)로 MoveIt을 실행했는지 확인 (Pilz 파이프라인과 시퀀스 capability를 여기서 등록)
 - `ros-humble-pilz-industrial-motion-planner` 설치 여부 확인 (Docker 이미지에는 포함)
+- 플래닝부터 실행, 폴백까지의 호출 순서는 [Blended MoveL 시퀀스 다이어그램](docs/movel-sequence.html)에서 확인 가능 (클론 후 브라우저로 열기)
 
 > `via blend radius must be > 0` 또는 `Pilz sequence failed` 오류는 `via_r`이 모두 0보다 큰지, blend 반경이 인접 구간 길이보다 작은지 확인하세요.
 
