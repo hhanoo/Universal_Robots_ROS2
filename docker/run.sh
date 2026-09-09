@@ -75,11 +75,3 @@ else
         \
         "$IMAGE_NAME"
 fi
-
-# Cleanup after container exit
-echo
-echo "---------- cleanup ----------"
-
-# Disable X11 access after container exit
-echo "==> [1/1] Disabling X11 access after container exit..."
-xhost -local:docker > /dev/null 2>&1
